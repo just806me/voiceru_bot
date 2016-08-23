@@ -339,7 +339,6 @@ class FfmpegWrap(object):
 
             temp_out_file.seek(0)
             return temp_out_file.read()
-            #returns empty !?
 
     @staticmethod
     def convert_to_ogg(in_filename: str = None, in_content: bytes = None):
@@ -383,6 +382,8 @@ class FfmpegWrap(object):
 
     @staticmethod
     def get_duration(file_path: str = None, audio_content: bytes = None):
+        temp_file = None
+
         if audio_content:
             temp_file = tempfile.NamedTemporaryFile(delete=False)
             temp_file.write(audio_content)
@@ -408,6 +409,9 @@ class FfmpegWrap(object):
                 duration = 1
         else:
             duration = 0
+
+        if temp_file:
+            os.remove(file_path)
 
         return duration
 
