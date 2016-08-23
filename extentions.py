@@ -16,6 +16,7 @@ import os
 # noinspection PyPackageRequirements
 from telegram.ext import CallbackQueryHandler, Handler
 from string import ascii_lowercase, digits
+from html.parser import HTMLParser
 from random import SystemRandom
 from bs4 import BeautifulSoup
 # noinspection PyPackageRequirements
@@ -149,7 +150,7 @@ class TextHelper(object):
     @staticmethod
     def text_to_parts(text: bytes, part_length: int = settings.Speech.Yandex.TEXT_MAX_LEN):
         if isinstance(text, str):
-            text = text.encode()
+            text = text.encode('utf-8')
 
         words = text.split()
         parts = [b'']

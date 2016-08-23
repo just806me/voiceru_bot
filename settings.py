@@ -23,6 +23,8 @@ class Telegram(object):
     ADMIN_USERNAME = None # Insert admin username here
     ADMIN_ID = None # Insert admin id here
     BOT_ID = None # Insert bot id here
+    BOT_GROUP_ID = None # Insert bot id here
+    BOT_DEV_ID = None # Insert bot id for development here
     INLINE_CACHE_TIME = 30
 
 

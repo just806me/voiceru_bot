@@ -79,7 +79,7 @@ queue_listener.start()
 db = MongoClient(settings.Data.CONNECTION_STRING)[settings.Data.DB_NAME][settings.Data.TABLE_NAME]
 
 # 28 is '@run_async' count
-if settings.Telegram.VOICERUDEV_TOKEN:
+if settings.Telegram.DEV_TOKEN:
     updater = bot_types.UpdatersStack(telegram.ext.Updater(token=settings.Telegram.DEV_TOKEN, workers=28))
 else:
     updater = bot_types.UpdatersStack(
@@ -124,7 +124,8 @@ def start_message(bot: telegram.Bot, update: telegram.Update, args: list = None)
 
         donate_thank_message(bot, update)
     else:
-        chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+        chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
         if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
             logging.info('Command start: send start message', extra={'id': log_id})
@@ -153,7 +154,9 @@ updater.add_handlers(telegram.ext.CommandHandler('start', start_message, pass_ar
 updater.add_handlers(extentions.LambdaHandler(
     lambda update: isinstance(update, telegram.Update) and update and update.message and
                    update.message.new_chat_member and
-                   update.message.new_chat_member.id == settings.Telegram.BOT_ID,
+                   (update.message.new_chat_member.id == settings.Telegram.BOT_GROUP_ID or
+                    update.message.new_chat_member.id == settings.Telegram.BOT_DEV_ID or
+                    update.message.new_chat_member.id == settings.Telegram.BOT_ID),
     start_message
 ))
 
@@ -1107,7 +1110,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         else:
             logging.info('Command url: split to parts.', extra={'id': log_id})
 
-            url_text = extentions.TextHelper.parse_text(url_text).encode()
+            url_text = extentions.TextHelper.parse_text(url_text).encode('utf-8')
             parts = extentions.TextHelper.text_to_parts(url_text)
 
             logging.info('Command url: synthesize.', extra={'id': log_id})
@@ -1174,7 +1177,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         if not chat_settings.quiet:
             bot.send_message(
                 chat_id=chat_settings.id,
-                text=strings.URL_ERROR_MESSAGE,
+                text=strings.URL_ERROR_MESSAGE % url,
                 parse_mode='HTML'
             )
         bot_types.Botan.track(
@@ -1264,7 +1267,7 @@ def text_to_speech(bot: telegram.Bot, update: telegram.Update):
     if chat_settings.mode == bot_types.Mode.tts or chat_settings.mode == bot_types.Mode.both:
         text = update.message.text
 
-        if len(text.encode()) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+        if len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
             send_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
             bot_types.Botan.track(
                 uid=update.message.chat_id,
@@ -1340,7 +1343,7 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
         logging.info('Text to speech: long begin.', extra={'id': log_id})
 
         if isinstance(text, str):
-            text = text.encode()
+            text = text.encode('utf-8')
 
         parts = extentions.TextHelper.text_to_parts(text)
 
@@ -1533,7 +1536,7 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
     chat_settings = bot_types.ChatSettings.from_db(db, update.inline_query.from_user)
 
     text = update.inline_query.query
-    if 0 < len(text.encode()) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+    if 0 < len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
         send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
         bot_types.Botan.track(
             uid=update.inline_query.from_user.id,
@@ -1550,7 +1553,7 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
     logging.info('Inline query: begin.', extra={'id': log_id})
 
     if isinstance(text, bytes):
-            text = text.decode()
+            text = text.decode('utf-8')
     
     with tempfile.NamedTemporaryFile(suffix='.mp3' if chat_settings.as_audio else '.ogg') as temp_file:
         audio_content = bot_types.Speech.tts(text, chat_settings, file_like=temp_file)

@@ -98,29 +98,12 @@ class ChatInputState(Enum):
 
 
 class ChatSettings(object):
-    def __init__(self, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
+    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
                  emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
                  active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
                  admin_name: str = None, admin_only: bool = False, quiet: bool = False,
                  donate_sum: int = 0, donate: bool = False):
-        if chat is None:
-            self.id = None
-            self.tg_name = None
-            self.voice = None
-            self.speed = None
-            self.emotion = None
-            self.first_time = None
-            self.active_time = None
-            self.active_time_inline = None
-            self.as_audio = None
-            self.mode = None
-            self.admin_id = None
-            self.admin_name = None
-            self.admin_only = None
-            self.quiet = None
-            self.donate_sum = None
-            self.donate = None
-        else:
+        if chat:
             self.id = chat.id
 
             if hasattr(chat, 'username') and chat.username:
@@ -150,6 +133,26 @@ class ChatSettings(object):
             self.quiet = quiet
             self.donate_sum = donate_sum
             self.donate = donate
+        else:
+            self.id = None
+            self.tg_name = None
+            self.voice = None
+            self.speed = None
+            self.emotion = None
+            self.first_time = None
+            self.active_time = None
+            self.active_time_inline = None
+            self.as_audio = None
+            self.mode = None
+            self.admin_id = None
+            self.admin_name = None
+            self.admin_only = None
+            self.quiet = None
+            self.donate_sum = None
+            self.donate = None
+        if db:
+            db.insert_one(self.to_dict())
+
 
     @staticmethod
     def from_dict(value: dict):
@@ -181,14 +184,14 @@ class ChatSettings(object):
         return {
             '_id': self.id,
             'tg-name': html_escape(self.tg_name),
-            'voice': self.voice,
+            'voice': self.voice.name,
             'speed': self.speed,
-            'emotion': self.emotion,
+            'emotion': self.emotion.name,
             'first-time': self.first_time,
             'active-time': self.active_time,
             'active-time-inline': self.active_time_inline,
             'audio': self.as_audio,
-            'mode': self.mode,
+            'mode': self.mode.name,
             'admin-id': self.admin_id if self.admin_id is not None else 0,
             'admin-name': html_escape(self.admin_name) if self.admin_name is not None else 'None',
             'admin-only': self.admin_only,
@@ -198,13 +201,13 @@ class ChatSettings(object):
         }
 
     @staticmethod
-    def from_db(db: MongoClient, chat: Chat):
+    def from_db(db: MongoClient, chat: Chat, admin_id: int = None, admin_name: str = None):
         from_db = db.find_one({'_id': chat.id})
 
-        if from_db is None:
-            return ChatSettings(chat)
-        else:
+        if from_db:
             return ChatSettings.from_dict(from_db)
+        else:
+            return ChatSettings(db, chat, admin_id=admin_id, admin_name=admin_name)
 
 
 class Donate(object):
@@ -393,7 +396,7 @@ class FfmpegWrap(object):
             stderr=subprocess.STDOUT
         )
 
-        output = ffmpeg_proc.communicate()[0].decode()
+        output = ffmpeg_proc.communicate()[0].decode('utf-8')
         duration = None
         for o in output.split('\n'):
             if 'Duration' in o and 'misdetection' not in o:
@@ -413,9 +416,9 @@ class Speech(object):
     # noinspection PyProtectedMember
     @staticmethod
     def tts(text: str, chat_settings: ChatSettings, lang: str = 'ru-RU', key: str = settings.Speech.Yandex.API_KEY,
-            filename: str = None, file_like=None, convert:bool =True):
+            filename: str = None, file_like=None, convert: bool=True):
         if isinstance(text, bytes):
-            text = text.decode()
+            text = text.decode('utf-8')
 
         if chat_settings.voice == Voice.maxim or chat_settings.voice == Voice.tatyana:
             if chat_settings.speed > 1.75:
@@ -506,12 +509,12 @@ class Speech(object):
         connection.endheaders()
 
         for chunk in chunks:
-            connection.send(('%s\r\n' % hex(len(chunk))[2:]).encode())
+            connection.send(('%s\r\n' % hex(len(chunk))[2:]).encode('utf-8'))
             connection.send(chunk)
-            connection.send('\r\n'.encode())
+            connection.send('\r\n'.encode('utf-8'))
             sleep(1)
 
-        connection.send('0\r\n\r\n'.encode())
+        connection.send('0\r\n\r\n'.encode('utf-8'))
 
         response = connection.getresponse()
         if response.code == 200:
