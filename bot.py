@@ -164,6 +164,23 @@ updater.add_handlers(extentions.LambdaHandler(
 # endregion
 
 
+#region reply command handlers
+
+@run_async
+def send_reply_message(bot: telegram.Bot, update: telegram.Update):
+    bot.send_message(
+        chat_id=update.message.chat_id,
+        text=strings.REPLY_MESSAGE,
+        reply_markup=telegram.ForceReply()
+    )
+
+updater.add_handlers(telegram.ext.CommandHandler('send', send_reply_message))
+updater.add_handlers(telegram.ext.CommandHandler('0', send_reply_message))
+
+
+#endregion
+
+
 # region help handlers
 
 @run_async
