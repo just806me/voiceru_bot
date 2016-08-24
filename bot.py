@@ -9,8 +9,6 @@
 # This program is licensed under The MIT License (MIT)
 # See https://opensource.org/licenses/MIT
 
-# noinspection PyPackageRequirements
-
 import logging.handlers as log_handlers
 # noinspection PyPackageRequirements
 import telegram.ext
@@ -29,6 +27,7 @@ from telegram.ext.dispatcher import run_async
 from pymongo import MongoClient
 from time import time, gmtime
 from queue import Queue
+
 
 # region logs setup
 
@@ -164,7 +163,7 @@ updater.add_handlers(extentions.LambdaHandler(
 # endregion
 
 
-#region reply command handlers
+# region reply command handlers
 
 @run_async
 def send_reply_message(bot: telegram.Bot, update: telegram.Update):
@@ -178,7 +177,7 @@ updater.add_handlers(telegram.ext.CommandHandler('send', send_reply_message))
 updater.add_handlers(telegram.ext.CommandHandler('0', send_reply_message))
 
 
-#endregion
+# endregion
 
 
 # region help handlers
@@ -1209,7 +1208,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
 
             bot.send_message(
                 chat_id=chat_settings.id,
-                text=strings.TTS_ERROR_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
+                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
                 parse_mode='HTML'
             )
         
@@ -1346,7 +1345,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
 
             bot.send_message(
                 chat_id=chat_settings.id,
-                text=strings.TTS_ERROR_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
+                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
                 parse_mode='HTML'
             )
 
@@ -1444,7 +1443,7 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
 
             bot.send_message(
                 chat_id=chat_settings.id,
-                text=strings.TTS_ERROR_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
+                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
                 parse_mode='HTML'
             )
 
@@ -1522,7 +1521,7 @@ def send_speech_to_text(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
 
             bot.send_message(
                 chat_id=chat_settings.id,
-                text=strings.TTS_ERROR_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
+                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
                 parse_mode='HTML'
             )
 
