@@ -47,9 +47,6 @@ class LambdaHandler(Handler):
 
         self.callback(dispatcher.bot, update, **optional_args)
 
-    def check_update(self, update):
-        return isinstance(update, Update) and update.text
-
 
 class EnumHelper(Enum):
     @staticmethod
