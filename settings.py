@@ -26,6 +26,7 @@ class Telegram(object):
     BOT_GROUP_ID = None # Insert bot id here
     BOT_DEV_ID = None # Insert bot id for development here
     INLINE_CACHE_TIME = 30
+    INLINE_WAIT_TIME = 10
 
 
 class Data(object):

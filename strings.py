@@ -156,6 +156,10 @@ ADVERTISEMENT_MESSAGE = '''<b>На правах рекламы:</b>
 
 REPLY_MESSAGE = '/send'
 
+INLINE_WAIT_MESSAGE = 'Только один запрос раз в %s секунд! Попробуй позже.'
+
+INLINE_BAR_REQUEST_MESSAGE = 'Неправильный запрос, попробуй еще раз.'
+
 # endregion
 
 # region KEYBOARDS

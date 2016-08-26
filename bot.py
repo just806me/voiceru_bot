@@ -77,17 +77,18 @@ queue_listener.start()
 
 db = MongoClient(settings.Data.CONNECTION_STRING)[settings.Data.DB_NAME][settings.Data.TABLE_NAME]
 
-# 28 is '@run_async' count
+# 29 is '@run_async' count
 if settings.Telegram.DEV_TOKEN:
-    updater = bot_types.UpdatersStack(telegram.ext.Updater(token=settings.Telegram.DEV_TOKEN, workers=28))
+    updater = bot_types.UpdatersStack(telegram.ext.Updater(token=settings.Telegram.DEV_TOKEN, workers=29))
 else:
     updater = bot_types.UpdatersStack(
-        telegram.ext.Updater(token=settings.Telegram.TOKEN, workers=28),
-        telegram.ext.Updater(token=settings.Telegram.GROUP_TOKEN, workers=28)
+        telegram.ext.Updater(token=settings.Telegram.TOKEN, workers=29),
+        telegram.ext.Updater(token=settings.Telegram.GROUP_TOKEN, workers=29)
     )
 
 chats_input_state = {}
 chats_adv_count = {}
+chats_inline_count = {}
 
 
 def should_send_advertisement(chat_settings: bot_types.ChatSettings):
@@ -1553,13 +1554,31 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
 
     text = update.inline_query.query
     if 0 < len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
-        send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
+        if (time() - chats_inline_count.get(update.inline_query.from_user.id, 0)) > \
+                settings.Telegram.INLINE_WAIT_TIME:
+            send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
+            chats_inline_count[chat_settings.id] = time()
+        else:
+            send_inline_query_error(
+                bot,
+                strings.INLINE_WAIT_MESSAGE % settings.Telegram.INLINE_WAIT_TIME,
+                update.inline_query.id
+            )
+            logging.info('Inline query: error too much requests.', extra={'id': log_id})
+            logging.info('Inline query: end.', extra={'id': log_id})
+
         bot_types.Botan.track(
             uid=update.inline_query.from_user.id,
             message=update.inline_query.to_dict(),
             name='inline'
         )
     else:
+        send_inline_query_error(
+            bot,
+            strings.INLINE_BAR_REQUEST_MESSAGE,
+            update.inline_query.id
+        )
+        logging.info('Inline query: error bad request.', extra={'id': log_id})
         logging.info('Inline query: end.', extra={'id': log_id})
 
 
@@ -1605,6 +1624,20 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
     )
 
     logging.info('Inline query: end.', extra={'id': log_id})
+
+@run_async
+def send_inline_query_error(bot: telegram.Bot, error_text: str, query_id: str):
+    bot.answer_inline_query(
+        inline_query_id=query_id,
+        is_personal=True,
+        cache_time=0,
+        results=[telegram.InlineQueryResultArticle(
+            extentions.TextHelper.get_random_id(),
+            'Ошибка',
+            telegram.InputTextMessageContent(error_text, parse_mode='HTML'),
+            description=error_text
+        )]
+    )
 
 
 updater.add_handlers(telegram.ext.InlineQueryHandler(inline_query))
