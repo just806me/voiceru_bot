@@ -259,8 +259,8 @@ def help_commands_callback(bot: telegram.Bot, update: telegram.Update):
     logging.info('Command help: commands.', extra={
         'telegram': {
             'update': update.to_dict(),
-            'chat_id': update.message.chat_id,
-            'message_id': update.message.message_id,
+            'chat_id': update.callback_query.message.chat_id,
+            'message_id': update.callback_query.message.message_id,
         },
         'id': extentions.TextHelper.get_md5(str(update.callback_query.id))
     })
