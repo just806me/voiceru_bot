@@ -1590,30 +1590,24 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
     if isinstance(text, bytes):
             text = text.decode('utf-8')
     
-    with tempfile.NamedTemporaryFile(suffix='.mp3' if chat_settings.as_audio else '.ogg') as temp_file:
-        audio_content = bot_types.Speech.tts(text, chat_settings, file_like=temp_file)
-        temp_file.seek(0)
-
-        logging.info('Inline query: upload to dropbox.', extra={'id': log_id})
-
-        share_url = extentions.FileHelper.share_file(temp_file.name)
+    url = settings.Telegram.INLINE_URL % (extentions.TextHelper.escape(text, safe=''), chat_settings.id)
 
     logging.info('Inline query: send result.', extra={'id': log_id})
 
     if chat_settings.as_audio:
         query_result = telegram.InlineQueryResultAudio(
             id=extentions.TextHelper.get_random_id(),
-            audio_url=share_url,
+            audio_url=url,
             performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
             title=text[:15] + '...' if len(text) > 15 else text,
-            audio_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
+            #audio_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
     else:
         query_result = telegram.InlineQueryResultVoice(
             id=extentions.TextHelper.get_random_id(),
-            voice_url=share_url,
+            voice_url=url,
             title=text[:15] + '...' if len(text) > 15 else text,
-            voice_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
+            #voice_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
 
     bot.answer_inline_query(

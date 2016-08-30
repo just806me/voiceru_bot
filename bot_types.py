@@ -23,9 +23,6 @@ from signal import signal, SIGINT, SIGTERM, SIGABRT
 from pyvona import create_voice as ivona_voice
 # noinspection PyPackageRequirements
 from telegram.ext.dispatcher import run_async
-from urllib.parse import quote as url_quote
-# noinspection PyDeprecation
-from cgi import escape as html_escape
 from pymongo import MongoClient
 from random import SystemRandom
 from enum import Enum, unique
@@ -116,7 +113,7 @@ class ChatSettings(object):
                 self.tg_name = ''
 
             # noinspection PyDeprecation
-            self.tg_name = html_escape(self.tg_name)
+            self.tg_name = self.tg_name
 
             self.voice = voice
             self.speed = speed
@@ -128,7 +125,7 @@ class ChatSettings(object):
             self.mode = mode
             self.admin_id = admin_id
             # noinspection PyDeprecation
-            self.admin_name = html_escape(admin_name) if admin_name else None
+            self.admin_name = admin_name if admin_name else None
             self.admin_only = admin_only
             self.quiet = quiet
             self.donate_sum = donate_sum
@@ -160,7 +157,7 @@ class ChatSettings(object):
 
         chat_settings.id = value['_id']
         # noinspection PyDeprecation
-        chat_settings.tg_name = html_escape(value['tg-name'])
+        chat_settings.tg_name = TextHelper.unescape(value['tg-name'])
         chat_settings.voice = EnumHelper.parse(Voice, value['voice']) if 'voice' in value else Voice.robot
         chat_settings.speed = float(value['speed']) if 'speed' in value else 1.0
         chat_settings.emotion = EnumHelper.parse(Emotion, value['emotion']) if 'emotion' in value else Emotion.good
@@ -171,7 +168,7 @@ class ChatSettings(object):
         chat_settings.mode = EnumHelper.parse(Mode, value['mode']) if 'mode' in value else Mode.both
         chat_settings.admin_id = int(value['admin-id']) if 'admin-id' in value and value['admin-id'] != 0 else None
         # noinspection PyDeprecation
-        chat_settings.admin_name = html_escape(str(value['admin-name'])) if 'admin-name' in value else None
+        chat_settings.admin_name = TextHelper.unescape(str(value['admin-name'])) if 'admin-name' in value else None
         chat_settings.admin_only = bool(value['admin-only']) if 'admin-only' in value else False
         chat_settings.quiet = bool(value['quiet']) if 'quiet' in value else False
         chat_settings.donate_sum = int(value['donate-sum']) if 'donate-sum' in value else 0
@@ -183,7 +180,7 @@ class ChatSettings(object):
         # noinspection PyDeprecation,PyDeprecation
         return {
             '_id': self.id,
-            'tg-name': html_escape(self.tg_name),
+            'tg-name': TextHelper.escape(self.tg_name),
             'voice': self.voice.name,
             'speed': self.speed,
             'emotion': self.emotion.name,
@@ -193,7 +190,7 @@ class ChatSettings(object):
             'audio': self.as_audio,
             'mode': self.mode.name,
             'admin-id': self.admin_id if self.admin_id is not None else 0,
-            'admin-name': html_escape(self.admin_name) if self.admin_name is not None else 'None',
+            'admin-name': TextHelper.escape(self.admin_name) if self.admin_name is not None else 'None',
             'admin-only': self.admin_only,
             'quiet': self.quiet,
             'donate-sum': self.donate_sum,
@@ -453,7 +450,7 @@ class Speech(object):
         else:
             url = settings.Speech.Yandex.TTS_URL + \
                   '?text=%s&format=%s&lang=%s&speaker=%s&key=%s&emotion=%s&speed=%s' % (
-                      url_quote(text),
+                      TextHelper.escape(text, safe=''),
                       'mp3',
                       lang,
                       chat_settings.voice.name,

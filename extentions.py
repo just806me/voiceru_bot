@@ -11,12 +11,10 @@
 
 import settings
 import requests
-import dropbox
-import os
 # noinspection PyPackageRequirements
 from telegram.ext import CallbackQueryHandler, Handler
+from urllib.parse import quote as url_quote
 from string import ascii_lowercase, digits
-from html.parser import HTMLParser
 from random import SystemRandom
 from bs4 import BeautifulSoup
 # noinspection PyPackageRequirements
@@ -61,20 +59,6 @@ class EnumHelper(Enum):
 
 
 class FileHelper(object):
-    remote_file_storage = dropbox.Dropbox(settings.Dropbox.TOKEN)
-
-    @staticmethod
-    def share_file(local_filename: str):
-        remote_filename = '/' + os.path.basename(local_filename)
-
-        FileHelper.remote_file_storage.files_upload(
-            open(local_filename, 'br'),
-            remote_filename,
-            dropbox.files.WriteMode.overwrite
-        )
-
-        return FileHelper.remote_file_storage.files_get_temporary_link(remote_filename).link
-
     @staticmethod
     def read_chunks(chunk_size: int, filename: str = None, content: bytes = None):
         if filename is not None:
@@ -164,9 +148,18 @@ class TextHelper(object):
         return parts
 
     @staticmethod
-    def parse_text(text: str):
+    def unescape(text: str):
         soup = BeautifulSoup(text)
         return soup.text
+
+    @staticmethod
+    def escape(text: str, safe: str = None):
+        if safe is not None:
+            # noinspection PyDeprecation
+            return url_quote(text, safe=safe)
+        else:
+            # noinspection PyDeprecation
+            return url_quote(text)
 
     @staticmethod
     def get_md5(data: str):

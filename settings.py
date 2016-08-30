@@ -26,17 +26,14 @@ class Telegram(object):
     BOT_GROUP_ID = None # Insert bot id here
     BOT_DEV_ID = None # Insert bot id for development here
     INLINE_CACHE_TIME = 30
-    INLINE_WAIT_TIME = 10
+    INLINE_WAIT_TIME = 3
+    INLINE_URL = None # Insert url for inline mode here
 
 
 class Data(object):
     CONNECTION_STRING = None # Insert mongodb connection string here
     DB_NAME = None # Insert datebase name here
     TABLE_NAME = None # Insert table name here
-
-
-class Dropbox(object):
-    TOKEN = None # Insert dropbox token here
 
 
 class Readability(object):
@@ -88,4 +85,9 @@ class Logging(object):
     ENDPOINT_HOST = None # Insert logging remote host here
     ENDPOINT_PATH = None # Insert logging remote path here
     LOG_FILE_PATH = None # Insert logging path/to/file here
+
+
+class Server(object):
+    HOST = None # Insert server ip here
+    PORT = None # Insert server port here
 
