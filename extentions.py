@@ -129,17 +129,17 @@ class UrlHelper(object):
 
 class TextHelper(object):
     @staticmethod
-    def text_to_parts(text: bytes, part_length: int = settings.Speech.Yandex.TEXT_MAX_LEN):
-        if isinstance(text, str):
-            text = text.encode('utf-8')
+    def text_to_parts(text: str, part_length: int = settings.Speech.Yandex.TEXT_MAX_LEN):
+        if isinstance(text, bytes):
+            text = text.decode('utf-8')
 
         words = text.split()
-        parts = [b'']
+        parts = ['']
         i = 0
 
         for w in words:
-            tmp = w + b' '
-            if len(parts[i] + tmp) <= part_length:
+            tmp = w + ' '
+            if len(TextHelper.escape(parts[i] + tmp, safe='').encode('utf-8')) <= part_length:
                 parts[i] += tmp
             else:
                 parts.append(tmp)

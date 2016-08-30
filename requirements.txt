@@ -2,7 +2,6 @@ pymongo
 requests
 pytz
 pyvona
-dropbox
 python-telegram-bot
 httplib2
 bs4

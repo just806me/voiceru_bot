@@ -134,16 +134,21 @@ URL_ERROR_MESSAGE = '''<b><Ошибка:/b> Не найден подходящи
 
 URL_PROGRESS_MESSAGE = '''Озвучивание текста с %s.
 %s [%s/%s].'''
-
 URL_PROGRESS_ERROR_MESSAGE = '''Озвучивание текста с %s.
 %s [%s/%s].
 
 <b>Ошибка:</b> %s.
 Повторная попытка...'''
 
-LONG_TEXT_PROGRESS_MESSAGE = ''
 
-LONG_TEXT_PROGRESS_ERROR_MESSAGE = ''
+LONG_TEXT_PROGRESS_MESSAGE = '''Озвучивание текста. Пожалуйста, подождите.
+%s [%s/%s].'''
+
+LONG_TEXT_PROGRESS_ERROR_MESSAGE = '''Озвучивание текста. Пожалуйста, подождите.
+%s [%s/%s].
+
+<b>Ошибка:</b> %s.
+Повторная попытка...'''
 
 STT_ERROR_MESSAGE = '<b>Ошибка:</b> Не удалось распознать текст из сообщения.'
 

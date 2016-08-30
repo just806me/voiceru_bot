@@ -1127,13 +1127,15 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         else:
             logging.info('Command url: split to parts.', extra={'id': log_id})
 
-            url_text = extentions.TextHelper.parse_text(url_text).encode('utf-8')
+            url_text = extentions.TextHelper.unescape(url_text).encode('utf-8')
             parts = extentions.TextHelper.text_to_parts(url_text)
 
             logging.info('Command url: synthesize.', extra={'id': log_id})
 
             l = len(parts)
             i = 0
+            errors = 0
+
             if not chat_settings.quiet:
                 progress_message_id = bot.send_message(
                     chat_id=chat_settings.id,
@@ -1142,7 +1144,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                 ).message_id
 
             with tempfile.NamedTemporaryFile() as temp_file:
-                while i < l:
+                while i < l and errors < 10:
                     try:
                         content = bot_types.Speech.tts(
                             text=parts[i],
@@ -1161,6 +1163,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                                 parse_mode='HTML'
                             )
                         logging.error('Command url: synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                        errors += 1
                     else:
                         temp_file.write(content)
 
@@ -1199,7 +1202,7 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
             )
         bot_types.Botan.track(
             uid=chat_settings.id,
-            message=url,
+            message={'url': url},
             name='url.error'
         )
         logging.error('Command url: unknown error.\n\n' + repr(err), extra={'id': log_id})
@@ -1284,7 +1287,7 @@ def text_to_speech(bot: telegram.Bot, update: telegram.Update):
     if chat_settings.mode == bot_types.Mode.tts or chat_settings.mode == bot_types.Mode.both:
         text = update.message.text
 
-        if len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+        if len(extentions.TextHelper.escape(text, safe='').encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
             send_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
             bot_types.Botan.track(
                 uid=update.message.chat_id,
@@ -1368,6 +1371,8 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
 
         l = len(parts)
         i = 0
+        errors = 0
+
         if not chat_settings.quiet:
             progress_message_id = bot.send_message(
                 chat_id=chat_settings.id,
@@ -1376,7 +1381,7 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
             ).message_id
 
         with tempfile.NamedTemporaryFile() as temp_file:
-            while i < l:
+            while i < l and errors < 10:
                 try:
                     content = bot_types.Speech.tts(
                         text=parts[i],
@@ -1395,6 +1400,7 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
                             parse_mode='HTML'
                         )
                     logging.error('Text to speech: long synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                    errors += 1
                 else:
                     temp_file.write(content)
                     i += 1
@@ -1434,7 +1440,7 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
             )
         bot_types.Botan.track(
             uid=chat_settings.id,
-            message=text,
+            message={'text': text},
             name='tts.long.error'
         )
         logging.error('Text to speech: long unknown error.\n\n' + repr(err), extra={'id': log_id})
@@ -1553,7 +1559,7 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
     chat_settings = bot_types.ChatSettings.from_db(db, update.inline_query.from_user)
 
     text = update.inline_query.query
-    if 0 < len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+    if 0 < len(extentions.TextHelper.escape(text, safe='').encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
         if (time() - chats_inline_count.get(update.inline_query.from_user.id, 0)) > \
                 settings.Telegram.INLINE_WAIT_TIME:
             send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
@@ -1588,25 +1594,25 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
     logging.info('Inline query: begin.', extra={'id': log_id})
 
     if isinstance(text, bytes):
-            text = text.decode('utf-8')
-    
+        text = text.decode('utf-8')
+
     url = settings.Telegram.INLINE_URL % (extentions.TextHelper.escape(text, safe=''), chat_settings.id)
 
-    logging.info('Inline query: send result.', extra={'id': log_id})
+    logging.info('Inline query: send link.', extra={'id': log_id})
 
     if chat_settings.as_audio:
         query_result = telegram.InlineQueryResultAudio(
             id=extentions.TextHelper.get_random_id(),
             audio_url=url,
             performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
-            title=text[:15] + '...' if len(text) > 15 else text,
+            title=text[:15] + '...' if len(text) > 15 else text
             #audio_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
     else:
         query_result = telegram.InlineQueryResultVoice(
             id=extentions.TextHelper.get_random_id(),
             voice_url=url,
-            title=text[:15] + '...' if len(text) > 15 else text,
+            title=text[:15] + '...' if len(text) > 15 else text
             #voice_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
 

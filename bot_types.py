@@ -112,7 +112,6 @@ class ChatSettings(object):
             else:
                 self.tg_name = ''
 
-            # noinspection PyDeprecation
             self.tg_name = self.tg_name
 
             self.voice = voice
@@ -124,7 +123,6 @@ class ChatSettings(object):
             self.as_audio = as_audio
             self.mode = mode
             self.admin_id = admin_id
-            # noinspection PyDeprecation
             self.admin_name = admin_name if admin_name else None
             self.admin_only = admin_only
             self.quiet = quiet
@@ -150,13 +148,11 @@ class ChatSettings(object):
         if db:
             db.insert_one(self.to_dict())
 
-
     @staticmethod
     def from_dict(value: dict):
         chat_settings = ChatSettings()
 
         chat_settings.id = value['_id']
-        # noinspection PyDeprecation
         chat_settings.tg_name = TextHelper.unescape(value['tg-name'])
         chat_settings.voice = EnumHelper.parse(Voice, value['voice']) if 'voice' in value else Voice.robot
         chat_settings.speed = float(value['speed']) if 'speed' in value else 1.0
@@ -167,7 +163,6 @@ class ChatSettings(object):
         chat_settings.as_audio = bool(value['audio']) if 'audio' in value else False
         chat_settings.mode = EnumHelper.parse(Mode, value['mode']) if 'mode' in value else Mode.both
         chat_settings.admin_id = int(value['admin-id']) if 'admin-id' in value and value['admin-id'] != 0 else None
-        # noinspection PyDeprecation
         chat_settings.admin_name = TextHelper.unescape(str(value['admin-name'])) if 'admin-name' in value else None
         chat_settings.admin_only = bool(value['admin-only']) if 'admin-only' in value else False
         chat_settings.quiet = bool(value['quiet']) if 'quiet' in value else False
@@ -177,7 +172,6 @@ class ChatSettings(object):
         return chat_settings
 
     def to_dict(self):
-        # noinspection PyDeprecation,PyDeprecation
         return {
             '_id': self.id,
             'tg-name': TextHelper.escape(self.tg_name),
