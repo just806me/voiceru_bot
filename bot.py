@@ -325,14 +325,11 @@ def send_settings_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettin
 
 # region settings voice
 
-@run_async
 def settings_voice_message(bot: telegram.Bot, update: telegram.Update):
-    bot.send_message(
-        chat_id=update.message.chat_id,
-        text=strings.SETTINGS_VOICE_CHOOSE_MESSAGE,
-        parse_mode='HTML',
-        reply_markup=strings.SETTINGS_VOICE_CHOOSE_MESSAGE_KEYBOARD
-    )
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        send_settings_voice_message(bot, update.message.chat_id)
 
     bot_types.Botan.track(
         uid=update.message.chat_id,
@@ -347,6 +344,16 @@ def settings_voice_message(bot: telegram.Bot, update: telegram.Update):
         },
         'id': extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
     })
+
+
+@run_async
+def send_settings_voice_message(bot: telegram.Bot, chat_id: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.SETTINGS_VOICE_CHOOSE_MESSAGE,
+        parse_mode='HTML',
+        reply_markup=strings.SETTINGS_VOICE_CHOOSE_MESSAGE_KEYBOARD
+    )
 
 
 def settings_voice_message_callback(bot: telegram.Bot, update: telegram.Update):
@@ -402,14 +409,11 @@ def send_settings_voice_message_callback(bot: telegram.Bot, voice: bot_types.Voi
 
 # region settings emotion
 
-@run_async
 def settings_emotion_message(bot: telegram.Bot, update: telegram.Update):
-    bot.send_message(
-        chat_id=update.message.chat_id,
-        text=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE,
-        parse_mode='HTML',
-        reply_markup=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE_KEYBOARD
-    )
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        send_settings_emotion_message(bot, update.message.chat_id)
 
     bot_types.Botan.track(
         uid=update.message.chat_id,
@@ -424,6 +428,16 @@ def settings_emotion_message(bot: telegram.Bot, update: telegram.Update):
         },
         'id': extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
     })
+
+
+@run_async
+def send_settings_emotion_message(bot: telegram.Bot, chat_id: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE,
+        parse_mode='HTML',
+        reply_markup=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE_KEYBOARD
+    )
 
 
 def settings_emotion_message_callback(bot: telegram.Bot, update: telegram.Update):
@@ -479,14 +493,11 @@ def send_settings_emotion_message_callback(bot: telegram.Bot, emotion: bot_types
 
 # region settings mode
 
-@run_async
 def settings_mode_message(bot: telegram.Bot, update: telegram.Update):
-    bot.send_message(
-        chat_id=update.message.chat_id,
-        text=strings.SETTINGS_MODE_CHOOSE_MESSAGE,
-        parse_mode='HTML',
-        reply_markup=strings.SETTINGS_MODE_CHOOSE_MESSAGE_KEYBOARD
-    )
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        send_settings_mode_message(bot, update.message.chat_id)
 
     bot_types.Botan.track(
         uid=update.message.chat_id,
@@ -501,6 +512,16 @@ def settings_mode_message(bot: telegram.Bot, update: telegram.Update):
         },
         'id': extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
     })
+
+
+@run_async
+def send_settings_mode_message(bot: telegram.Bot, chat_id: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.SETTINGS_MODE_CHOOSE_MESSAGE,
+        parse_mode='HTML',
+        reply_markup=strings.SETTINGS_MODE_CHOOSE_MESSAGE_KEYBOARD
+    )
 
 
 def settings_mode_message_callback(bot: telegram.Bot, update: telegram.Update):
@@ -1223,7 +1244,8 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
 def send_url_message_arg_get(bot: telegram.Bot, chat_id):
     bot.send_message(
         chat_id=chat_id,
-        text=strings.URL_ARG_GET_MESSAGE
+        text=strings.URL_ARG_GET_MESSAGE,
+        reply_markup=telegram.ForceReply()
     )
 
 
