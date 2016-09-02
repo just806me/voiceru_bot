@@ -35,7 +35,7 @@ class WebApp(object):
             return 'Not working.'
 
     @cherrypy.expose
-    def inline(self, text, chat_id):
+    def inline(self, text, chat_id, query_id):
         chat_settings = bot_types.ChatSettings.from_dict(self.db.find_one({'_id': int(chat_id)}))
 
         with NamedTemporaryFile(suffix='.mp3' if chat_settings.as_audio else '.ogg') as file:

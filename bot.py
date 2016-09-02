@@ -1596,7 +1596,7 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
     if isinstance(text, bytes):
         text = text.decode('utf-8')
 
-    url = settings.Telegram.INLINE_URL % (extentions.TextHelper.escape(text, safe=''), chat_settings.id)
+    url = settings.Telegram.INLINE_URL % (extentions.TextHelper.escape(text, safe=''), chat_settings.id, query_id)
 
     logging.info('Inline query: send link.', extra={'id': log_id})
 
@@ -1606,14 +1606,12 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
             audio_url=url,
             performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
             title=text[:15] + '...' if len(text) > 15 else text
-            #audio_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
     else:
         query_result = telegram.InlineQueryResultVoice(
             id=extentions.TextHelper.get_random_id(),
             voice_url=url,
             title=text[:15] + '...' if len(text) > 15 else text
-            #voice_duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content)
         )
 
     bot.answer_inline_query(

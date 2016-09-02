@@ -27,7 +27,7 @@ class Telegram(object):
     BOT_DEV_ID = None # Insert bot id for development here
     INLINE_CACHE_TIME = 30
     INLINE_WAIT_TIME = 3
-    INLINE_URL = None # Insert url for inline mode here
+    INLINE_URL = None + 'inline?text=%s&chat_id=%s&query_id=%s' # Insert url for inline mode here
 
 
 class Data(object):
