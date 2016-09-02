@@ -141,10 +141,10 @@ URL_PROGRESS_ERROR_MESSAGE = '''Озвучивание текста с %s.
 Повторная попытка...'''
 
 
-LONG_TEXT_PROGRESS_MESSAGE = '''Озвучивание текста. Пожалуйста, подождите.
+LONG_TEXT_PROGRESS_MESSAGE = '''Озвучивание текста.
 %s [%s/%s].'''
 
-LONG_TEXT_PROGRESS_ERROR_MESSAGE = '''Озвучивание текста. Пожалуйста, подождите.
+LONG_TEXT_PROGRESS_ERROR_MESSAGE = '''Озвучивание текста.
 %s [%s/%s].
 
 <b>Ошибка:</b> %s.
