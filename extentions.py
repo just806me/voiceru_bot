@@ -11,13 +11,11 @@
 
 import settings
 import requests
-# noinspection PyPackageRequirements
 from telegram.ext import CallbackQueryHandler, Handler
 from urllib.parse import quote as url_quote
 from string import ascii_lowercase, digits
 from random import SystemRandom
 from bs4 import BeautifulSoup
-# noinspection PyPackageRequirements
 from telegram import Update
 from hashlib import md5
 from enum import Enum
@@ -51,7 +49,6 @@ class EnumHelper(Enum):
     def parse(enum_type: Enum, value: str):
         if enum_type is None or value is None:
             return None
-        # noinspection PyTypeChecker
         for v in enum_type:
             if v.name == value:
                 return v
@@ -105,7 +102,6 @@ class UrlHelper(object):
                 attrs={'class': 'asset-body'}
             ).text
         elif not url_text:
-            # noinspection PyBroadException
             try:
                 url_text = BeautifulSoup(requests.get(url).text).body.find(
                     'div',
@@ -155,10 +151,8 @@ class TextHelper(object):
     @staticmethod
     def escape(text: str, safe: str = None):
         if safe is not None:
-            # noinspection PyDeprecation
             return url_quote(text, safe=safe)
         else:
-            # noinspection PyDeprecation
             return url_quote(text)
 
     @staticmethod

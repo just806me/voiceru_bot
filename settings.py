@@ -43,24 +43,10 @@ class Readability(object):
     API_URL = 'https://www.readability.com/api/content/v1'
 
 
-class Addybot(object):
-    TOKEN = None # Insert addybot token here
-    API_URL = 'http://api.addybot.com/%s/ad'
-    HEADERS = {'Content-Type': 'application/json; charset=UTF-8'}
-
-
 class Botan(object):
     TOKEN = None # Insert botan token here
     TRACK_URL = 'https://api.botan.io/track'
     SHORTENER_URL = 'https://api.botan.io/s/'
-
-
-class Donate(object):
-    URL = 'https://money.yandex.ru/quickpay/confirm.xml'
-    RECEIVER = None # Insert reciever number here
-    TARGET = None # Insert target message here
-    TITLE = None # Insert title here
-    SUCCESS_URL = None # Insert success url here
 
 
 class Speech(object):

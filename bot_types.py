@@ -21,13 +21,11 @@ import os
 from extentions import EnumHelper, FileHelper, TextHelper
 from signal import signal, SIGINT, SIGTERM, SIGABRT
 from pyvona import create_voice as ivona_voice
-# noinspection PyPackageRequirements
 from telegram.ext.dispatcher import run_async
 from pymongo import MongoClient
 from random import SystemRandom
 from enum import Enum, unique
 from time import time, sleep
-# noinspection PyPackageRequirements
 from telegram import Chat
 
 random = SystemRandom()
@@ -90,7 +88,6 @@ class Mode(Enum):
 class ChatInputState(Enum):
     normal = 0
     input_speed = 1
-    input_donate = 2
     input_url = 3
 
 
@@ -98,8 +95,7 @@ class ChatSettings(object):
     def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
                  emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
                  active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
-                 admin_name: str = None, admin_only: bool = False, quiet: bool = False,
-                 donate_sum: int = 0, donate: bool = False):
+                 admin_name: str = None, admin_only: bool = False, quiet: bool = False):
         if chat:
             self.id = chat.id
 
@@ -126,8 +122,6 @@ class ChatSettings(object):
             self.admin_name = admin_name if admin_name else None
             self.admin_only = admin_only
             self.quiet = quiet
-            self.donate_sum = donate_sum
-            self.donate = donate
         else:
             self.id = None
             self.tg_name = None
@@ -143,8 +137,6 @@ class ChatSettings(object):
             self.admin_name = None
             self.admin_only = None
             self.quiet = None
-            self.donate_sum = None
-            self.donate = None
         if db:
             db.insert_one(self.to_dict())
 
@@ -166,8 +158,6 @@ class ChatSettings(object):
         chat_settings.admin_name = TextHelper.unescape(str(value['admin-name'])) if 'admin-name' in value else None
         chat_settings.admin_only = bool(value['admin-only']) if 'admin-only' in value else False
         chat_settings.quiet = bool(value['quiet']) if 'quiet' in value else False
-        chat_settings.donate_sum = int(value['donate-sum']) if 'donate-sum' in value else 0
-        chat_settings.donate = bool(value['donate']) if 'donate' in value else False
 
         return chat_settings
 
@@ -186,9 +176,7 @@ class ChatSettings(object):
             'admin-id': self.admin_id if self.admin_id is not None else 0,
             'admin-name': TextHelper.escape(self.admin_name) if self.admin_name is not None else 'None',
             'admin-only': self.admin_only,
-            'quiet': self.quiet,
-            'donate-sum': self.donate_sum,
-            'donate': self.donate
+            'quiet': self.quiet
         }
 
     @staticmethod
@@ -199,31 +187,6 @@ class ChatSettings(object):
             return ChatSettings.from_dict(from_db)
         else:
             return ChatSettings(db, chat, admin_id=admin_id, admin_name=admin_name)
-
-
-class Donate(object):
-    @staticmethod
-    def get_url(donate_sum, pay_type='AC'):
-        return settings.Donate.URL + \
-               '?receiver=%s&formcomment=%s&short-dest=%s&quickpay-form=%s' \
-               '&targets=%s&paymentType=%s&sum=%s&successURL=%s' % (
-                   # receiver
-                   settings.Donate.RECEIVER,
-                   # sender history name
-                   settings.Donate.TITLE,
-                   # confirm name
-                   settings.Donate.TITLE,
-                   # transaction type
-                   'donate',
-                   # target
-                   settings.Donate.TARGET,
-                   # payment type
-                   pay_type,
-                   # sum
-                   donate_sum,
-                   # success url
-                   settings.Donate.SUCCESS_URL
-               )
 
 
 class Botan(object):
@@ -237,7 +200,6 @@ class Botan(object):
             headers={'Content-type': 'application/json'},
         )
 
-    # noinspection PyBroadException
     @staticmethod
     def shorten_url(uid, url, token=settings.Botan.TOKEN):
         try:
@@ -253,23 +215,6 @@ class Botan(object):
                 raise Exception('Botan: bad status code - %s' % str(r.status_code))
         except:
             return url
-
-
-class Addybot(object):
-    # noinspection PyBroadException
-    @staticmethod
-    def get_advertisement(uid):
-        data = json.dumps({'userIdentifier': str(uid), 'language': 'russian'}).encode('utf-8')
-        r = json.loads(requests.post(
-            url=settings.Addybot.API_URL % settings.Addybot.TOKEN,
-            data=data,
-            headers=settings.Addybot.HEADERS
-        ).text)
-
-        if r['responseType'] == 'success':
-            return r['data']['text'], r['data']['uri']
-        else:
-            raise Exception(r['message'])
 
 
 class Readability(object):
@@ -408,7 +353,6 @@ class FfmpegWrap(object):
 
 
 class Speech(object):
-    # noinspection PyProtectedMember
     @staticmethod
     def tts(text: str, chat_settings: ChatSettings, lang: str = 'ru-RU', key: str = settings.Speech.Yandex.API_KEY,
             filename: str = None, file_like=None, convert: bool=True):
@@ -534,6 +478,13 @@ class Speech(object):
                             request_id if request_id is not None else 'None'
                         )
                     )
+            else:
+                raise Exception(
+                    'STT: No text found.\n\nResponse:\n%s\n\nRequest id: %s' % (
+                        response_text,
+                        request_id if request_id is not None else 'None'
+                    )
+                )
         else:
             raise Exception('STT: Yandex ASR bad response.\nCode: %s\n\n%s' % (response.code, response.read()))
 

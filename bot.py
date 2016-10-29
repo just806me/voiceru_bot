@@ -10,11 +10,9 @@
 # See https://opensource.org/licenses/MIT
 
 import logging.handlers as log_handlers
-# noinspection PyPackageRequirements
 import telegram.ext
 import extentions
 import bot_types
-# noinspection PyPackageRequirements
 import telegram
 import requests
 import tempfile
@@ -22,7 +20,6 @@ import settings
 import strings
 import logging
 import re
-# noinspection PyPackageRequirements
 from telegram.ext.dispatcher import run_async
 from pymongo import MongoClient
 from time import time, gmtime
@@ -87,28 +84,11 @@ else:
     )
 
 chats_input_state = {}
-chats_adv_count = {}
 chats_inline_count = {}
-
-
-def should_send_advertisement(chat_settings: bot_types.ChatSettings):
-    try:
-        if chats_adv_count[chat_settings.id] < 10:
-            chats_adv_count[chat_settings.id] += 1
-        else:
-            chats_adv_count[chat_settings.id] = 1
-    except KeyError:
-        chats_adv_count[chat_settings.id] = 1
-
-    # each 10th message and if not donated and if ( private chat or not quiet )
-    return chats_adv_count[chat_settings.id] == 10 and \
-           not chat_settings.donate and \
-           (chat_settings.admin_id == chat_settings.id or not chat_settings.quiet)
-
 
 # region start handlers
 
-def start_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
+def start_message(bot: telegram.Bot, update: telegram.Update):
     log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
     logging.info('Command start: init.', extra={
         'telegram': {
@@ -119,25 +99,20 @@ def start_message(bot: telegram.Bot, update: telegram.Update, args: list = None)
         'id': log_id
     })
 
-    if args and args[0] == 'donate':
-        logging.info('Command start: donate', extra={'id': log_id})
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                           admin_name=update.message.from_user.first_name)
 
-        donate_thank_message(bot, update)
-    else:
-        chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
-                                               admin_name=update.message.from_user.first_name)
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        logging.info('Command start: send start message', extra={'id': log_id})
 
-        if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
-            logging.info('Command start: send start message', extra={'id': log_id})
+        send_start_message(bot, update.message.chat_id, chat_settings.tg_name)
+        send_settings_message(bot, chat_settings)
 
-            send_start_message(bot, update.message.chat_id, chat_settings.tg_name)
-            send_settings_message(bot, chat_settings)
-
-            bot_types.Botan.track(
-                uid=update.message.chat_id,
-                message=update.message.to_dict(),
-                name='start'
-            )
+        bot_types.Botan.track(
+            uid=update.message.chat_id,
+            message=update.message.to_dict(),
+            name='start'
+        )
 
     logging.info('Command start: end', extra={'id': log_id})
 
@@ -150,7 +125,7 @@ def send_start_message(bot: telegram.Bot, chat_id, user_name):
     )
 
 
-updater.add_handlers(telegram.ext.CommandHandler('start', start_message, pass_args=True))
+updater.add_handlers(telegram.ext.CommandHandler('start', start_message))
 updater.add_handlers(extentions.LambdaHandler(
     lambda update: isinstance(update, telegram.Update) and update and update.message and
                    update.message.new_chat_member and
@@ -279,7 +254,8 @@ updater.add_handlers(extentions.MyCallbackQueryHandler('h.about', help_about_cal
 # region settings main
 
 def settings_message(bot: telegram.Bot, update: telegram.Update):
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         send_settings_message(bot, chat_settings)
@@ -326,7 +302,8 @@ def send_settings_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettin
 # region settings voice
 
 def settings_voice_message(bot: telegram.Bot, update: telegram.Update):
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         send_settings_voice_message(bot, update.message.chat_id)
@@ -410,7 +387,8 @@ def send_settings_voice_message_callback(bot: telegram.Bot, voice: bot_types.Voi
 # region settings emotion
 
 def settings_emotion_message(bot: telegram.Bot, update: telegram.Update):
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         send_settings_emotion_message(bot, update.message.chat_id)
@@ -494,7 +472,8 @@ def send_settings_emotion_message_callback(bot: telegram.Bot, emotion: bot_types
 # region settings mode
 
 def settings_mode_message(bot: telegram.Bot, update: telegram.Update):
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         send_settings_mode_message(bot, update.message.chat_id)
@@ -588,7 +567,8 @@ def settings_audio_message(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         logging.info('Command settings: audio set.', extra={'id': log_id})
@@ -634,7 +614,8 @@ def settings_quiet_message(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         logging.info('Command settings: quiet set.', extra={'id': log_id})
@@ -680,7 +661,8 @@ def settings_admin_message(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         logging.info('Command settings: admin set.', extra={'id': log_id})
@@ -726,7 +708,8 @@ def settings_speed_message(bot: telegram.Bot, update: telegram.Update, args: lis
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         if args:
@@ -810,7 +793,8 @@ def settings_speed_arg_message(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
@@ -887,205 +871,6 @@ updater.add_handlers(extentions.LambdaHandler(
 # endregion
 
 
-# region donate handlers
-
-def donate_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
-    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
-    logging.info('Command donate: init.', extra={
-        'telegram': {
-            'update': update.to_dict(),
-            'chat_id': update.message.chat_id,
-            'message_id': update.message.message_id,
-        },
-        'id': log_id
-    })
-    
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
-
-    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
-        if args:
-            try:
-                donate_sum = int(args[0])
-                
-                if donate_sum <= 0:
-                    raise ValueError('bot_types.Donate sum lower or equal to 0.')
-            except ValueError as err:
-                if not chat_settings.quiet:
-                    send_donate_message_arg_error(bot, chat_settings.id)
-                    
-                bot_types.Botan.track(
-                    uid=update.message.chat_id,
-                    message=update.message.to_dict(),
-                    name='donate.error'
-                )
-                logging.error('Command donate: value error.\n\n' + repr(err), extra={'id': log_id})
-            else:
-                logging.info('Command donate: send donate message.', extra={'id': log_id})
-
-                db.update_one(
-                    {'_id': chat_settings.id},
-                    {'$set': {
-                        'donate': False,
-                        'donate-sum': chat_settings.donate_sum + donate_sum
-                    }}
-                )
-                send_donate_message(bot, chat_settings.id, donate_sum)
-                
-                bot_types.Botan.track(
-                    uid=update.message.chat_id,
-                    message=update.message.to_dict(),
-                    name='donate.' + str(donate_sum)
-                )
-        else:
-            logging.info('Command donate: get arg.', extra={'id': log_id})
-            
-            chats_input_state[chat_settings.id] = bot_types.ChatInputState.input_donate
-            send_donate_message_arg_get(bot, chat_settings.id)
-            
-            bot_types.Botan.track(
-                uid=update.message.chat_id,
-                message=update.message.to_dict(),
-                name='donate.get'
-            )
-
-    logging.info('Command donate: end.', extra={'id': log_id})
-
-
-@run_async
-def send_donate_message(bot: telegram.Bot, chat_id, donate_sum: int):
-    bot.send_message(
-        chat_id=chat_id,
-        text=strings.DONATE_MESSAGE % str(donate_sum),
-        parse_mode='HTML',
-        reply_markup=strings.DONATE_MESSAGE_KEYBOARD % bot_types.Donate.get_url(donate_sum)
-    )
-
-
-@run_async
-def send_donate_message_arg_error(bot: telegram.Bot, chat_id):
-    bot.send_message(
-        chat_id=chat_id,
-        text=strings.DONATE_ARG_ERROR_MESSAGE,
-        parse_mode='HTML'
-    )
-
-
-@run_async
-def send_donate_message_arg_get(bot: telegram.Bot, chat_id):
-    bot.send_message(
-        chat_id=chat_id,
-        text=strings.DONATE_ARG_GET_MESSAGE
-    )
-
-
-def donate_arg_message(bot: telegram.Bot, update: telegram.Update):
-    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
-    logging.info('Command donate: init.', extra={
-        'telegram': {
-            'update': update.to_dict(),
-            'chat_id': update.message.chat_id,
-            'message_id': update.message.message_id,
-        },
-        'id': log_id
-    })
-
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
-
-    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
-        chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
-
-        try:
-            donate_sum = int(update.message.text)
-
-            if donate_sum <= 0:
-                raise ValueError('bot_types.Donate sum lower or equal to 0.')
-        except ValueError as err:
-            if not chat_settings.quiet:
-                send_donate_message_arg_error(bot, chat_settings.id)
-
-            bot_types.Botan.track(
-                uid=update.message.chat_id,
-                message=update.message.to_dict(),
-                name='donate.error'
-            )
-            logging.error('Command donate: value error.\n\n' + repr(err), extra={'id': log_id})
-        else:
-            logging.info('Command donate: send donate message.', extra={'id': log_id})
-
-            db.update_one(
-                {'_id': chat_settings.id},
-                {'$set': {
-                    'donate': False,
-                    'donate-sum': chat_settings.donate_sum + donate_sum
-                }}
-            )
-            send_donate_message(bot, chat_settings.id, donate_sum)
-
-            bot_types.Botan.track(
-                uid=update.message.chat_id,
-                message=update.message.to_dict(),
-                name='donate.' + str(donate_sum)
-            )
-
-    logging.info('Command donate: end.', extra={'id': log_id})
-
-
-def donate_thank_message(bot: telegram.Bot, update: telegram.Update):
-    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
-    logging.info('Command donate: init.', extra={
-        'telegram': {
-            'update': update.to_dict(),
-            'chat_id': update.message.chat_id,
-            'message_id': update.message.message_id,
-        },
-        'id': log_id
-    })
-
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
-
-    if chat_settings.donate_sum > 0:
-        logging.info('Command donate: send thank message.', extra={'id': log_id})
-
-        db.update_one(
-            {'_id': chat_settings.id},
-            {'$set': {
-                'donate': True
-            }}
-        )
-        send_donate_thank_message(bot, chat_settings.id)
-
-        bot_types.Botan.track(
-            uid=update.message.chat_id,
-            message=update.message.to_dict(),
-            name='donate.finished'
-        )
-
-    logging.info('Command donate: end.', extra={'id': log_id})
-
-
-@run_async
-def send_donate_thank_message(bot: telegram.Bot, chat_id):
-    bot.send_message(
-        chat_id=chat_id,
-        text=strings.DONATE_THANK_MESSAGE,
-        parse_mode='HTML'
-    )
-
-
-updater.add_handlers(telegram.ext.CommandHandler('donate', donate_message, pass_args=True))
-updater.add_handlers(extentions.LambdaHandler(
-    lambda update: isinstance(update, telegram.Update) and update.message and update.message.text and
-                   bot_types.ChatInputState.input_donate == chats_input_state.get(
-                       update.message.from_user.id,
-                       bot_types.ChatInputState.normal
-                   ),
-    donate_arg_message
-))
-
-
-# endregion
-
-
 # region url handlers
 
 def url_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
@@ -1099,7 +884,8 @@ def url_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if args:
         url = args[0]
@@ -1134,7 +920,6 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
 
         logging.info('Command url: get page content.', extra={'id': log_id})
 
-        # noinspection PyBroadException
         try:
             url_text, url_title = bot_types.Readability.get_text_from_web_page(url)
         except:
@@ -1228,15 +1013,6 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         )
         logging.error('Command url: unknown error.\n\n' + repr(err), extra={'id': log_id})
     else:
-        if should_send_advertisement(chat_settings):
-            logging.info('Command url: send advertisement.', extra={'id': log_id})
-
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
-                parse_mode='HTML'
-            )
-        
         logging.info('Command url: end.', extra={'id': log_id})
 
 
@@ -1260,7 +1036,8 @@ def url_arg_message(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
 
@@ -1304,7 +1081,8 @@ def text_to_speech(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if chat_settings.mode == bot_types.Mode.tts or chat_settings.mode == bot_types.Mode.both:
         text = update.message.text
@@ -1366,15 +1144,6 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
             )
         logging.error('Text to speech: short unknown error.\n\n' + repr(err), extra={'id': log_id})
     else:
-        if should_send_advertisement(chat_settings):
-            logging.info('Text to speech: send advertisement.', extra={'id': log_id})
-
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
-                parse_mode='HTML'
-            )
-
         logging.info('Text to speech: short end.', extra={'id': log_id})
 
 
@@ -1467,15 +1236,6 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
         )
         logging.error('Text to speech: long unknown error.\n\n' + repr(err), extra={'id': log_id})
     else:
-        if should_send_advertisement(chat_settings):
-            logging.info('Text to speech: long send advertisement.', extra={'id': log_id})
-
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
-                parse_mode='HTML'
-            )
-
         logging.info('Text to speech: long end.', extra={'id': log_id})
 
 
@@ -1498,7 +1258,8 @@ def speech_to_text(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
 
     if chat_settings.mode == bot_types.Mode.stt or chat_settings.mode == bot_types.Mode.both:
         if update.message.voice:
@@ -1545,15 +1306,6 @@ def send_speech_to_text(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
             )
         logging.error('Speech to text: long unknown error.\n\n' + repr(err), extra={'id': log_id})
     else:
-        if should_send_advertisement(chat_settings):
-            logging.info('Speech to text: send advertisement.', extra={'id': log_id})
-
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.ADVERTISEMENT_MESSAGE % bot_types.Addybot.get_advertisement(chat_settings.id),
-                parse_mode='HTML'
-            )
-
         logging.info('Speech to text: end.', extra={'id': log_id})
 
 
@@ -1578,7 +1330,8 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
         'id': log_id
     })
 
-    chat_settings = bot_types.ChatSettings.from_db(db, update.inline_query.from_user)
+    chat_settings = bot_types.ChatSettings.from_db(db, update.inline_query.from_user, admin_id=update.inline_query.from_user.id,
+                                               admin_name=update.inline_query.from_user.first_name)
 
     text = update.inline_query.query
     if 0 < len(extentions.TextHelper.escape(text, safe='').encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
@@ -1633,7 +1386,8 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         query_result = telegram.InlineQueryResultVoice(
             id=extentions.TextHelper.get_random_id(),
             voice_url=url,
-            title=text[:15] + '...' if len(text) > 15 else text
+            title=text[:15] + '...' if len(text) > 15 else text,
+            voice_duration=1
         )
 
     bot.answer_inline_query(
