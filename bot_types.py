@@ -18,7 +18,7 @@ import requests
 import logging
 import json
 import os
-from extentions import EnumHelper, FileHelper, TextHelper
+from extentions import EnumHelper, TextHelper
 from signal import signal, SIGINT, SIGTERM, SIGABRT
 from pyvona import create_voice as ivona_voice
 from telegram.ext.dispatcher import run_async
@@ -33,55 +33,11 @@ random = SystemRandom()
 
 @unique
 class Voice(Enum):
-    robot = 0
-    zahar = 1
-    ermil = 2
-    jane = 3
-    oksana = 4
-    alyss = 5
-    omazh = 6
     maxim = 7
     tatyana = 8
 
     def __str__(self):
         return self.name
-
-
-@unique
-class Emotion(Enum):
-    good = 0
-    evil = 1
-    neutral = 2
-    mixed = 3
-
-    def __str__(self):
-        if self.value == 0:
-            return 'доброжелательный'
-        elif self.value == 1:
-            return 'злой'
-        elif self.value == 2:
-            return 'нейтральный'
-        elif self.value == 3:
-            return 'переменный'
-        else:
-            return None
-
-
-@unique
-class Mode(Enum):
-    tts = 0
-    stt = 1
-    both = 2
-
-    def __str__(self):
-        if self.value == 0:
-            return 'текст в речь'
-        elif self.value == 1:
-            return 'речь в текст'
-        elif self.value == 2:
-            return 'текст в речь и речь в текст'
-        else:
-            return None
 
 
 @unique
@@ -92,10 +48,10 @@ class ChatInputState(Enum):
 
 
 class ChatSettings(object):
-    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
-                 emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
-                 active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
-                 admin_name: str = None, admin_only: bool = False, quiet: bool = False):
+    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.maxim, speed: float = 1.0,
+                 first_time: int = time(), active_time: int = 0, active_time_inline: int = 0, 
+                 as_audio: bool = False, admin_id: int = None, admin_name: str = None, 
+                 admin_only: bool = False, quiet: bool = False):
         if chat:
             self.id = chat.id
 
@@ -112,12 +68,10 @@ class ChatSettings(object):
 
             self.voice = voice
             self.speed = speed
-            self.emotion = emotion
             self.first_time = first_time
             self.active_time = active_time
             self.active_time_inline = active_time_inline
             self.as_audio = as_audio
-            self.mode = mode
             self.admin_id = admin_id
             self.admin_name = admin_name if admin_name else None
             self.admin_only = admin_only
@@ -127,12 +81,10 @@ class ChatSettings(object):
             self.tg_name = None
             self.voice = None
             self.speed = None
-            self.emotion = None
             self.first_time = None
             self.active_time = None
             self.active_time_inline = None
             self.as_audio = None
-            self.mode = None
             self.admin_id = None
             self.admin_name = None
             self.admin_only = None
@@ -146,14 +98,12 @@ class ChatSettings(object):
 
         chat_settings.id = value['_id']
         chat_settings.tg_name = TextHelper.unescape(value['tg-name'])
-        chat_settings.voice = EnumHelper.parse(Voice, value['voice']) if 'voice' in value else Voice.robot
+        chat_settings.voice = EnumHelper.parse(Voice, value['voice']) if 'voice' in value else Voice.maxim
         chat_settings.speed = float(value['speed']) if 'speed' in value else 1.0
-        chat_settings.emotion = EnumHelper.parse(Emotion, value['emotion']) if 'emotion' in value else Emotion.good
         chat_settings.first_time = int(value['first-time']) if 'first-time' in value else time()
         chat_settings.active_time = int(value['active-time']) if 'active-time' in value else 0
         chat_settings.active_time_inline = int(value['active-time-inline']) if 'active-time-inline' in value else 0
         chat_settings.as_audio = bool(value['audio']) if 'audio' in value else False
-        chat_settings.mode = EnumHelper.parse(Mode, value['mode']) if 'mode' in value else Mode.both
         chat_settings.admin_id = int(value['admin-id']) if 'admin-id' in value and value['admin-id'] != 0 else None
         chat_settings.admin_name = TextHelper.unescape(str(value['admin-name'])) if 'admin-name' in value else None
         chat_settings.admin_only = bool(value['admin-only']) if 'admin-only' in value else False
@@ -167,12 +117,10 @@ class ChatSettings(object):
             'tg-name': TextHelper.escape(self.tg_name),
             'voice': self.voice.name,
             'speed': self.speed,
-            'emotion': self.emotion.name,
             'first-time': self.first_time,
             'active-time': self.active_time,
             'active-time-inline': self.active_time_inline,
             'audio': self.as_audio,
-            'mode': self.mode.name,
             'admin-id': self.admin_id if self.admin_id is not None else 0,
             'admin-name': TextHelper.escape(self.admin_name) if self.admin_name is not None else 'None',
             'admin-only': self.admin_only,
@@ -320,7 +268,7 @@ class FfmpegWrap(object):
     def get_duration(file_path: str = None, audio_content: bytes = None):
         temp_file = None
 
-        if audio_content:
+        if  (not file_path) and audio_content:
             temp_file = tempfile.NamedTemporaryFile(delete=False)
             temp_file.write(audio_content)
             temp_file.close()
@@ -354,54 +302,36 @@ class FfmpegWrap(object):
 
 class Speech(object):
     @staticmethod
-    def tts(text: str, chat_settings: ChatSettings, lang: str = 'ru-RU', key: str = settings.Speech.Yandex.API_KEY,
+    def tts(text: str, chat_settings: ChatSettings, lang: str = 'ru-RU',
             filename: str = None, file_like=None, convert: bool=True):
         if isinstance(text, bytes):
             text = text.decode('utf-8')
 
-        if chat_settings.voice == Voice.maxim or chat_settings.voice == Voice.tatyana:
-            if chat_settings.speed > 1.75:
-                speech_rate = 'x-fast'
-            elif chat_settings.speed > 1.25:
-                speech_rate = 'fast'
-            elif chat_settings.speed > 0.75:
-                speech_rate = 'medium'
-            elif chat_settings.speed > 0.25:
-                speech_rate = 'slow'
-            else:
-                speech_rate = 'x-slow'
-
-            v = ivona_voice(settings.Speech.Ivona.ACCESS_KEY, settings.Speech.Ivona.SECRET_KEY)
-            v.codec = 'mp3'
-            v.speech_rate = speech_rate
-            v.voice_name = chat_settings.voice.name.capitalize()
-
-            r = v._send_amazon_auth_packet_v4(
-                'POST', 'tts', 'application/json', '/CreateSpeech', '',
-                v._generate_payload(text), v._region, v._host
-            )
-
-            if r.content.startswith(b'{'):
-                raise Exception('Error getting audio form ivona.')
-            else:
-                response_content = r.content
+        if chat_settings.speed > 1.75:
+            speech_rate = 'x-fast'
+        elif chat_settings.speed > 1.25:
+            speech_rate = 'fast'
+        elif chat_settings.speed > 0.75:
+            speech_rate = 'medium'
+        elif chat_settings.speed > 0.25:
+            speech_rate = 'slow'
         else:
-            url = settings.Speech.Yandex.TTS_URL + \
-                  '?text=%s&format=%s&lang=%s&speaker=%s&key=%s&emotion=%s&speed=%s' % (
-                      TextHelper.escape(text, safe=''),
-                      'mp3',
-                      lang,
-                      chat_settings.voice.name,
-                      key,
-                      chat_settings.emotion.name,
-                      str(chat_settings.speed)
-                  )
+            speech_rate = 'x-slow'
 
-            r = requests.get(url)
-            if r.status_code == 200:
-                response_content = r.content
-            else:
-                raise Exception('TTS Error: ' + r.text)
+        v = ivona_voice(settings.Speech.IVONA_ACCESS_KEY, settings.Speech.IVONA_SECRET_KEY)
+        v.codec = 'mp3'
+        v.speech_rate = speech_rate
+        v.voice_name = chat_settings.voice.name.capitalize()
+
+        r = v._send_amazon_auth_packet_v4(
+            'POST', 'tts', 'application/json', '/CreateSpeech', '',
+            v._generate_payload(text), v._region, v._host
+        )
+
+        if r.content.startswith(b'{'):
+            raise Exception('Error getting audio form ivona.')
+        else:
+            response_content = r.content
 
         if not chat_settings.as_audio and convert:
             response_content = FfmpegWrap.convert_to_ogg(in_content=response_content)
@@ -413,80 +343,6 @@ class Speech(object):
             file_like.write(response_content)
 
         return response_content
-
-    @staticmethod
-    def stt(filename: str = None, content: bytes = None, request_id: str = None, topic: str = 'notes',
-            lang: str = 'ru-RU', key: str = settings.Speech.Yandex.API_KEY):
-        if filename is not None:
-            file = open(filename, 'br')
-            content = file.read()
-            file.close()
-        if content is None:
-            raise Exception('No file name or content provided.')
-
-        content = FfmpegWrap.convert_to_pcm16b16000r(in_content=content)
-
-        if request_id is not None:
-            uuid = TextHelper.get_md5(request_id)
-        else:
-            uuid = TextHelper.get_md5(str(time()))
-
-        url = settings.Speech.Yandex.STT_PATH + '?uuid=%s&key=%s&topic=%s&lang=%s' % (
-            uuid,
-            key,
-            topic,
-            lang
-        )
-        chunks = FileHelper.read_chunks(settings.Speech.Yandex.CHUNK_SIZE, content=content)
-
-        connection = httplib2.HTTPConnectionWithTimeout(settings.Speech.Yandex.STT_HOST)
-
-        connection.connect()
-        connection.putrequest('POST', url)
-        connection.putheader('Transfer-Encoding', 'chunked')
-        connection.putheader('Content-Type', 'audio/x-pcm;bit=16;rate=16000')
-        connection.endheaders()
-
-        for chunk in chunks:
-            connection.send(('%s\r\n' % hex(len(chunk))[2:]).encode('utf-8'))
-            connection.send(chunk)
-            connection.send('\r\n'.encode('utf-8'))
-            sleep(1)
-
-        connection.send('0\r\n\r\n'.encode('utf-8'))
-
-        response = connection.getresponse()
-        if response.code == 200:
-            response_text = response.read()
-            xml = XmlElementTree.fromstring(response_text)
-
-            if int(xml.attrib['success']) == 1:
-                max_confidence = - float("inf")
-                text = ''
-
-                for child in xml:
-                    if float(child.attrib['confidence']) > max_confidence:
-                        text = child.text
-                        max_confidence = float(child.attrib['confidence'])
-
-                if max_confidence != - float("inf"):
-                    return text
-                else:
-                    raise Exception(
-                        'STT: No text found.\n\nResponse:\n%s\n\nRequest id: %s' % (
-                            response_text,
-                            request_id if request_id is not None else 'None'
-                        )
-                    )
-            else:
-                raise Exception(
-                    'STT: No text found.\n\nResponse:\n%s\n\nRequest id: %s' % (
-                        response_text,
-                        request_id if request_id is not None else 'None'
-                    )
-                )
-        else:
-            raise Exception('STT: Yandex ASR bad response.\nCode: %s\n\n%s' % (response.code, response.read()))
 
 
 # Adds 'id' property to record

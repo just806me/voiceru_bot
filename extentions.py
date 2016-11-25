@@ -55,29 +55,10 @@ class EnumHelper(Enum):
         return None
 
 
-class FileHelper(object):
-    @staticmethod
-    def read_chunks(chunk_size: int, filename: str = None, content: bytes = None):
-        if filename is not None:
-            file = open(filename, 'br')
-            content = file.read()
-            file.close()
-        if content is None:
-            raise Exception('No file name or content provided.')
-
-        while True:
-            chunk = content[:chunk_size]
-            content = content[chunk_size:]
-
-            yield chunk
-
-            if not content:
-                break
-
-
 class UrlHelper(object):
     @staticmethod
-    def try_custom_text_from_url(url: str, url_text: str):
+    def try_custom_text_from_url(url: str):
+        url_text = None
         if 'vk.com' in url and ('page' not in url or 'topic' not in url):
             if 'm.vk.com' in url:
                 url = url.replace('m.vk.com', 'vk.com')
@@ -101,7 +82,7 @@ class UrlHelper(object):
                 'div',
                 attrs={'class': 'asset-body'}
             ).text
-        elif not url_text:
+        else:
             try:
                 url_text = BeautifulSoup(requests.get(url).text).body.find(
                     'div',
@@ -124,25 +105,6 @@ class UrlHelper(object):
 
 
 class TextHelper(object):
-    @staticmethod
-    def text_to_parts(text: str, part_length: int = settings.Speech.Yandex.TEXT_MAX_LEN):
-        if isinstance(text, bytes):
-            text = text.decode('utf-8')
-
-        words = text.split()
-        parts = ['']
-        i = 0
-
-        for w in words:
-            tmp = w + ' '
-            if len(TextHelper.escape(parts[i] + tmp, safe='').encode('utf-8')) <= part_length:
-                parts[i] += tmp
-            else:
-                parts.append(tmp)
-                i += 1
-
-        return parts
-
     @staticmethod
     def unescape(text: str):
         soup = BeautifulSoup(text)
