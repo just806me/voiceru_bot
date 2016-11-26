@@ -74,13 +74,13 @@ queue_listener.start()
 
 db = MongoClient(settings.Data.CONNECTION_STRING)[settings.Data.DB_NAME][settings.Data.TABLE_NAME]
 
-# 19 is '@run_async' count
+# 29 is '@run_async' count
 if settings.Telegram.DEV_TOKEN:
     updater = bot_types.UpdatersStack(telegram.ext.Updater(token=settings.Telegram.DEV_TOKEN, workers=29))
 else:
     updater = bot_types.UpdatersStack(
-        telegram.ext.Updater(token=settings.Telegram.TOKEN, workers=19),
-        telegram.ext.Updater(token=settings.Telegram.GROUP_TOKEN, workers=19)
+        telegram.ext.Updater(token=settings.Telegram.TOKEN, workers=29),
+        telegram.ext.Updater(token=settings.Telegram.GROUP_TOKEN, workers=29)
     )
 
 chats_input_state = {}
@@ -281,9 +281,12 @@ def send_settings_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettin
         chat_id=chat_settings.id,
         text=strings.SETTINGS_MESSAGE % (
             chat_settings.admin_name,
+            str(chat_settings.mode),
             'включен' if chat_settings.quiet else 'выключен',
             'только администратор бота' if chat_settings.admin_only else 'кто угодно',
+            'установлен' if chat_settings.yandex_key else 'не установлен',
             str(chat_settings.voice),
+            str(chat_settings.emotion),
             str(chat_settings.speed),
             'аудиозапись' if chat_settings.as_audio else 'голосовое сообщение',
             'голосовое сообщение' if chat_settings.as_audio else 'аудиозапись',
@@ -376,6 +379,176 @@ def send_settings_voice_message_callback(bot: telegram.Bot, voice: bot_types.Voi
         bot.answer_callback_query(
             callback_query_id=callback_query_id,
             text=strings.NEW_VOICE_MESSAGE % str(voice)
+        )
+
+
+# endregion
+
+
+# region settings emotion
+
+def settings_emotion_message(bot: telegram.Bot, update: telegram.Update):
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        send_settings_emotion_message(bot, update.message.chat_id)
+
+    bot_types.Botan.track(
+        uid=update.message.chat_id,
+        message=update.message.to_dict(),
+        name='settings.emotions.get'
+    )
+    logging.info('Command settings: emotion.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.message.chat_id,
+            'message_id': update.message.message_id,
+        },
+        'id': extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
+    })
+
+
+@run_async
+def send_settings_emotion_message(bot: telegram.Bot, chat_id: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE,
+        parse_mode='HTML',
+        reply_markup=strings.SETTINGS_EMOTION_CHOOSE_MESSAGE_KEYBOARD
+    )
+
+
+def settings_emotion_message_callback(bot: telegram.Bot, update: telegram.Update):
+    log_id = extentions.TextHelper.get_md5(str(update.callback_query.id))
+    logging.info('Command settings: emotion begin.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.callback_query.message.chat_id,
+            'message_id': update.callback_query.message.message_id,
+        },
+        'id': log_id
+    })
+
+    chat_settings = bot_types.ChatSettings.from_db(db, update.callback_query.message.chat)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.callback_query.from_user.id:
+        emotion = extentions.EnumHelper.parse(bot_types.Emotion, update.callback_query.data.split('.')[1])
+
+        logging.info('Command settings: emotion set.', extra={'id': log_id})
+
+        db.update_one(
+            {'_id': chat_settings.id},
+            {'$set': {
+                'emotion': emotion.name
+            }}
+        )
+        send_settings_emotion_message_callback(bot, emotion, update.callback_query.id, chat_settings.quiet)
+        bot_types.Botan.track(
+            uid=update.callback_query.message.chat_id,
+            message=update.callback_query.message.to_dict(),
+            name='settings.emotion.' + emotion.name
+        )
+
+    logging.info('Command settings: emotion end.', extra={'id': log_id})
+
+
+@run_async
+def send_settings_emotion_message_callback(bot: telegram.Bot, emotion: bot_types.Emotion,
+                                           callback_query_id: str, quiet: bool):
+    if quiet:
+        bot.answer_callback_query(
+            callback_query_id=callback_query_id
+        )
+    else:
+        bot.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text=strings.NEW_EMOTION_MESSAGE % str(emotion)
+        )
+
+
+# endregion
+
+
+# region settings mode
+
+def settings_mode_message(bot: telegram.Bot, update: telegram.Update):
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        send_settings_mode_message(bot, update.message.chat_id)
+
+    bot_types.Botan.track(
+        uid=update.message.chat_id,
+        message=update.message.to_dict(),
+        name='settings.mode.get'
+    )
+    logging.info('Command settings: mode.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.message.chat_id,
+            'message_id': update.message.message_id,
+        },
+        'id': extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
+    })
+
+
+@run_async
+def send_settings_mode_message(bot: telegram.Bot, chat_id: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.SETTINGS_MODE_CHOOSE_MESSAGE,
+        parse_mode='HTML',
+        reply_markup=strings.SETTINGS_MODE_CHOOSE_MESSAGE_KEYBOARD
+    )
+
+
+def settings_mode_message_callback(bot: telegram.Bot, update: telegram.Update):
+    log_id = extentions.TextHelper.get_md5(str(update.callback_query.id))
+    logging.info('Command settings: mode begin.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.callback_query.message.chat_id,
+            'message_id': update.callback_query.message.message_id,
+        },
+        'id': log_id
+    })
+
+    chat_settings = bot_types.ChatSettings.from_db(db, update.callback_query.message.chat)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.callback_query.from_user.id:
+        mode = extentions.EnumHelper.parse(bot_types.Mode, update.callback_query.data.split('.')[1])
+
+        logging.info('Command settings: mode set.', extra={'id': log_id})
+
+        db.update_one(
+            {'_id': chat_settings.id},
+            {'$set': {
+                'mode': mode.name
+            }}
+        )
+        send_settings_mode_message_callback(bot, mode, update.callback_query.id, chat_settings.quiet)
+        bot_types.Botan.track(
+            uid=update.callback_query.message.chat_id,
+            message=update.callback_query.message.to_dict(),
+            name='settings.mode.' + mode.name
+        )
+
+    logging.info('Command settings: mode end.', extra={'id': log_id})
+
+
+@run_async
+def send_settings_mode_message_callback(bot: telegram.Bot, mode: bot_types.Mode,
+                                        callback_query_id: str, quiet: bool):
+    if quiet:
+        bot.answer_callback_query(
+            callback_query_id=callback_query_id
+        )
+    else:
+        bot.answer_callback_query(
+            callback_query_id=callback_query_id,
+            text=strings.NEW_MODE_MESSAGE % str(mode)
         )
 
 
@@ -661,12 +834,129 @@ def settings_speed_arg_message(bot: telegram.Bot, update: telegram.Update):
 
 # endregion
 
+
+# region settings key
+
+def settings_key_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
+    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
+    logging.info('Command settings: key init.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.message.chat_id,
+            'message_id': update.message.message_id,
+        },
+        'id': log_id
+    })
+
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        if args:
+            key = extentions.TextHelper.escape(args[0].strip())
+            logging.info('Command settings: key set.', extra={'id': log_id})
+
+            db.update_one(
+                {'_id': chat_settings.id},
+                {'$set': {
+                    'yandex_key': key
+                }}
+            )
+
+            if not chat_settings.quiet:
+                send_settings_key_message(bot, chat_settings.id, key)
+
+            bot_types.Botan.track(
+                uid=update.message.chat_id,
+                message=update.message.to_dict(),
+                name='settings.key.' + str(key)
+            )
+        else:
+            logging.info('Command settings: key get arg.', extra={'id': log_id})
+
+            chats_input_state[chat_settings.id] = bot_types.ChatInputState.input_key
+            send_settings_key_message_arg_get(bot, chat_settings.id)
+            bot_types.Botan.track(
+                uid=update.message.chat_id,
+                message=update.message.to_dict(),
+                name='settings.key.get'
+            )
+
+    logging.info('Command settings: key end.', extra={'id': log_id})
+
+
+@run_async
+def send_settings_key_message(bot: telegram.Bot, chat_id, key: float):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.NEW_KEY_MESSAGE % str(key)
+    )
+
+
+@run_async
+def send_settings_key_message_arg_get(bot: telegram.Bot, chat_id):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.NEW_KEY_ARG_GET_MESSAGE
+    )
+
+
+def settings_key_arg_message(bot: telegram.Bot, update: telegram.Update):
+    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
+    logging.info('Command settings: key init.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.message.chat_id,
+            'message_id': update.message.message_id,
+        },
+        'id': log_id
+    })
+
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
+
+    if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
+        chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
+
+        key = extentions.TextHelper.escape(update.message.text.strip())
+        logging.info('Command settings: key set.', extra={'id': log_id})
+
+        db.update_one(
+            {'_id': chat_settings.id},
+            {'$set': {
+                'yandex_key': key
+            }}
+        )
+
+        if not chat_settings.quiet:
+            send_settings_key_message(bot, chat_settings.id, key)
+        bot_types.Botan.track(
+            uid=update.message.chat_id,
+            message=update.message.to_dict(),
+            name='settings.key.' + str(key)
+        )
+
+
+# endregion
+
 updater.add_handlers(telegram.ext.CommandHandler('settings', settings_message))
 
 updater.add_handlers(telegram.ext.CommandHandler('voice', settings_voice_message))
 for v in bot_types.Voice:
     updater.add_handlers(
         extentions.MyCallbackQueryHandler('v.' + v.name, settings_voice_message_callback)
+    )
+
+updater.add_handlers(telegram.ext.CommandHandler('emotion', settings_emotion_message))
+for e in bot_types.Emotion:
+    updater.add_handlers(
+        extentions.MyCallbackQueryHandler('e.' + e.name, settings_emotion_message_callback)
+    )
+
+updater.add_handlers(telegram.ext.CommandHandler('mode', settings_mode_message))
+for m in bot_types.Mode:
+    updater.add_handlers(
+        extentions.MyCallbackQueryHandler('m.' + m.name, settings_mode_message_callback)
     )
 
 updater.add_handlers(telegram.ext.CommandHandler('audio', settings_audio_message))
@@ -683,6 +973,15 @@ updater.add_handlers(extentions.LambdaHandler(
     settings_speed_arg_message
 ))
 
+updater.add_handlers(telegram.ext.CommandHandler('key', settings_key_message, pass_args=True))
+updater.add_handlers(extentions.LambdaHandler(
+    lambda update: isinstance(update, telegram.Update) and update.message and update.message.text and
+                   bot_types.ChatInputState.input_key == chats_input_state.get(
+                       update.message.from_user.id,
+                       bot_types.ChatInputState.normal
+                   ),
+    settings_key_arg_message
+))
 
 # endregion
 
@@ -706,13 +1005,7 @@ def url_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
     if args:
         url = args[0]
 
-        url = extentions.UrlHelper.prepare_url(url)
-        text = extentions.UrlHelper.try_custom_text_from_url(url)
-        if not text:
-            text = bot_types.Readability.get_text_from_web_page(url)
-        text = extentions.TextHelper.unescape(text)
-
-        send_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
+        send_url_message(bot, chat_settings, url, update.message.message_id, log_id)
         bot_types.Botan.track(
             uid=update.message.chat_id,
             message=update.message.to_dict(),
@@ -729,6 +1022,112 @@ def url_message(bot: telegram.Bot, update: telegram.Update, args: list = None):
             message=update.message.to_dict(),
             name='url.get'
         )
+        logging.info('Command url: end.', extra={'id': log_id})
+
+
+@run_async
+def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
+                     url: str, request_message_id: int, log_id: str):
+    try:
+        logging.info('Command url: begin.', extra={'id': log_id})
+
+        url = extentions.UrlHelper.prepare_url(url)
+
+        logging.info('Command url: get page content.', extra={'id': log_id})
+
+        try:
+            url_text, url_title = bot_types.Readability.get_text_from_web_page(url)
+        except:
+            url_text = None
+            url_title = 'Article'
+
+        url_text = extentions.UrlHelper.try_custom_text_from_url(url, url_text)
+
+        if not url_text:
+            raise Exception('url_text is None')
+        else:
+            logging.info('Command url: split to parts.', extra={'id': log_id})
+
+            url_text = extentions.TextHelper.unescape(url_text).encode('utf-8')
+            parts = extentions.TextHelper.text_to_parts(url_text)
+
+            logging.info('Command url: synthesize.', extra={'id': log_id})
+
+            l = len(parts)
+            i = 0
+            errors = 0
+
+            if not chat_settings.quiet:
+                progress_message_id = bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.URL_PROGRESS_MESSAGE % (url, '0.0 %', i, l),
+                    parse_mode='HTML'
+                ).message_id
+
+            with tempfile.NamedTemporaryFile() as temp_file:
+                while i < l and errors < 10:
+                    try:
+                        content = bot_types.Speech.tts(
+                            text=parts[i],
+                            chat_settings=chat_settings,
+                            convert=False
+                        )
+                    except Exception as err:
+                        if not chat_settings.quiet:
+                            bot.edit_message_text(
+                                chat_id=chat_settings.id,
+                                message_id=progress_message_id,
+                                text=strings.URL_PROGRESS_ERROR_MESSAGE % (
+                                    url, str(int(i / l * 100)) + '%', i, l,
+                                    'Не удалось синтезировать текст.'
+                                ),
+                                parse_mode='HTML'
+                            )
+                        logging.error('Command url: synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                        errors += 1
+                    else:
+                        temp_file.write(content)
+
+                        i += 1
+
+                        if not chat_settings.quiet:
+                            bot.edit_message_text(
+                                chat_id=chat_settings.id,
+                                message_id=progress_message_id,
+                                text=strings.URL_PROGRESS_MESSAGE % (
+                                    url, str(int(i / l * 100)) + '%', i, l
+                                ),
+                                parse_mode='HTML'
+                            )
+
+                temp_file.seek(0)
+                audio_content = temp_file.read()
+                temp_file.seek(0)
+
+                logging.info('Command url: send result.', extra={'id': log_id})
+
+                bot.send_audio(
+                    chat_id=chat_settings.id,
+                    audio=temp_file,
+                    duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
+                    performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
+                    title=url_title,
+                    reply_to_message_id=request_message_id
+                )
+    except Exception as err:
+        if not chat_settings.quiet:
+            bot.send_message(
+                chat_id=chat_settings.id,
+                text=strings.URL_ERROR_MESSAGE % url,
+                parse_mode='HTML'
+            )
+        bot_types.Botan.track(
+            uid=chat_settings.id,
+            message={'url': url},
+            name='url.error'
+        )
+        logging.error('Command url: unknown error.\n\n' + repr(err), extra={'id': log_id})
+    else:
         logging.info('Command url: end.', extra={'id': log_id})
 
 
@@ -756,23 +1155,16 @@ def url_arg_message(bot: telegram.Bot, update: telegram.Update):
                                                admin_name=update.message.from_user.first_name)
 
     chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
-    url = re.findall(settings.WEB_URI_REGEX, update.message.text)[0][0]
 
-    url = extentions.UrlHelper.prepare_url(url)
-    text = extentions.UrlHelper.try_custom_text_from_url(url)
-    if not text:
-        text = bot_types.Readability.get_text_from_web_page(url)
-    text = extentions.TextHelper.unescape(text)
-
-    send_text_to_speech(
+    send_url_message(
         bot, chat_settings,
-        text,
+        re.findall(settings.WEB_URI_REGEX, update.message.text)[0][0],
         update.message.message_id, log_id
     )
     bot_types.Botan.track(
         uid=update.message.chat_id,
         message=update.message.to_dict(),
-        name='url.' + url
+        name='url.' + update.message.text
     )
 
 
@@ -807,14 +1199,25 @@ def text_to_speech(bot: telegram.Bot, update: telegram.Update):
     chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
                                                admin_name=update.message.from_user.first_name)
 
-    text = update.message.text
+    if chat_settings.mode == bot_types.Mode.tts or chat_settings.mode == bot_types.Mode.both:
+        text = update.message.text
 
-    send_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
-    bot_types.Botan.track(
-        uid=update.message.chat_id,
-        message=update.message.to_dict(),
-        name='tts'
-    )
+        if len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+            send_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
+            bot_types.Botan.track(
+                uid=update.message.chat_id,
+                message=update.message.to_dict(),
+                name='tts'
+            )
+        else:
+            send_long_text_to_speech(bot, chat_settings, text, update.message.message_id, log_id)
+            bot_types.Botan.track(
+                uid=update.message.chat_id,
+                message=update.message.to_dict(),
+                name='tts.long'
+            )
+    else:
+        logging.info('Text to speech: end.', extra={'id': log_id})
 
 
 @run_async
@@ -823,7 +1226,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
     logging.info('Text to speech: short begin.', extra={'id': log_id})
 
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3' if chat_settings.as_audio else '.ogg') as temp_file:
+        with tempfile.NamedTemporaryFile() as temp_file:
             audio_content = bot_types.Speech.tts(text, chat_settings, file_like=temp_file)
             temp_file.seek(0)
 
@@ -833,7 +1236,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
                     chat_id=chat_settings.id,
                     audio=temp_file,
                     duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
-                    performer=str(chat_settings.voice),
+                    performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
                     title=str(time()),
                     reply_to_message_id=request_message_id,
                     reply_markup=telegram.ForceReply()
@@ -848,18 +1251,207 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
                 )
     except Exception as err:
         if not chat_settings.quiet:
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.TTS_ERROR_MESSAGE,
-                reply_to_message_id=request_message_id,
-                parse_mode='HTML'
-            )
-        logging.error('Text to speech: short unknown error.\n\n' + repr(err), extra={'id': log_id})
+            if 'no key' in str(err):
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_KEY_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+            else:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+        logging.error('Text to speech: short error.\n\n' + repr(err), extra={'id': log_id})
     else:
         logging.info('Text to speech: short end.', extra={'id': log_id})
 
 
+@run_async
+def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
+                             text: bytes, request_message_id: int, log_id: str):
+    try:
+        logging.info('Text to speech: long begin.', extra={'id': log_id})
+
+        if isinstance(text, str):
+            text = text.encode('utf-8')
+
+        parts = extentions.TextHelper.text_to_parts(text)
+
+        logging.info('Text to speech: long synthesize.', extra={'id': log_id})
+
+        l = len(parts)
+        i = 0
+        errors = 0
+
+        if not chat_settings.quiet:
+            progress_message_id = bot.send_message(
+                chat_id=chat_settings.id,
+                text=strings.LONG_TEXT_PROGRESS_MESSAGE % ('0.0 %', i, l),
+                parse_mode='HTML'
+            ).message_id
+
+        with tempfile.NamedTemporaryFile() as temp_file:
+            while i < l and errors < 10:
+                try:
+                    content = bot_types.Speech.tts(
+                        text=parts[i],
+                        chat_settings=chat_settings,
+                        convert=False
+                    )
+                except Exception as err:
+                    if not chat_settings.quiet:
+                        bot.edit_message_text(
+                            chat_id=chat_settings.id,
+                            message_id=progress_message_id,
+                            text=strings.LONG_TEXT_PROGRESS_ERROR_MESSAGE % (
+                                str(int(i / l * 100)) + '%', i, l,
+                                'Не удалось синтезировать текст.'
+                            ),
+                            parse_mode='HTML'
+                        )
+                    logging.error('Text to speech: long synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                    errors += 1
+                else:
+                    temp_file.write(content)
+                    i += 1
+
+                    if not chat_settings.quiet:
+                        bot.edit_message_text(
+                            chat_id=chat_settings.id,
+                            message_id=progress_message_id,
+                            text=strings.LONG_TEXT_PROGRESS_MESSAGE % (
+                                str(int(i / l * 100)) + '%', i, l
+                            ),
+                            parse_mode='HTML'
+                        )
+
+            temp_file.seek(0)
+            audio_content = temp_file.read()
+            temp_file.seek(0)
+
+            logging.info('Text to speech: long send result.', extra={'id': log_id})
+
+            bot.send_audio(
+                chat_id=chat_settings.id,
+                audio=temp_file,
+                duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
+                performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
+                title=str(time()),
+                reply_to_message_id=request_message_id,
+                reply_markup=telegram.ForceReply()
+            )
+    except Exception as err:
+        if not chat_settings.quiet:
+            if 'no key' in str(err):
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_KEY_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+            else:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML',
+                )
+        bot_types.Botan.track(
+            uid=chat_settings.id,
+            message={'text': text},
+            name='tts.long.error'
+        )
+        logging.error('Text to speech: long error.\n\n' + repr(err), extra={'id': log_id})
+    else:
+        logging.info('Text to speech: long end.', extra={'id': log_id})
+
+
 updater.add_handlers(telegram.ext.MessageHandler([telegram.ext.Filters.text], text_to_speech))
+
+
+# endregion
+
+
+# region audio handlers
+
+def speech_to_text(bot: telegram.Bot, update: telegram.Update):
+    log_id = extentions.TextHelper.get_md5(str(update.message.chat_id) + str(update.message.message_id))
+    logging.info('Speech to text: init.', extra={
+        'telegram': {
+            'update': update.to_dict(),
+            'chat_id': update.message.chat_id,
+            'message_id': update.message.message_id,
+        },
+        'id': log_id
+    })
+
+    chat_settings = bot_types.ChatSettings.from_db(db, update.message.chat, admin_id=update.message.from_user.id,
+                                               admin_name=update.message.from_user.first_name)
+
+    if chat_settings.mode == bot_types.Mode.stt or chat_settings.mode == bot_types.Mode.both:
+        if update.message.voice:
+            send_speech_to_text(bot, chat_settings, update.message.voice.file_id, update.message.message_id, log_id)
+        elif update.message.audio:
+            send_speech_to_text(bot, chat_settings, update.message.audio.file_id, update.message.message_id, log_id)
+
+        bot_types.Botan.track(
+            uid=update.message.chat_id,
+            message=update.message.to_dict(),
+            name='stt'
+        )
+    else:
+        logging.info('Speech to text: end.', extra={'id': log_id})
+
+
+@run_async
+def send_speech_to_text(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
+                        file_id: str, request_message_id: int, log_id: str):
+    logging.info('Speech to text: begin.', extra={'id': log_id})
+
+    try:
+        voice_url = bot.get_file(file_id).file_path
+        voice_content = requests.get(voice_url).content
+
+        logging.info('Speech to text: recognize voice.', extra={'id': log_id})
+
+        voice_text = bot_types.Speech.stt(chat_settings, content=voice_content, request_id=file_id)
+
+        logging.info('Speech to text: send result.', extra={'id': log_id})
+
+        bot.send_message(
+            chat_id=chat_settings.id,
+            text=voice_text,
+            reply_to_message_id=request_message_id
+        )
+    except Exception as err:
+        if not chat_settings.quiet:
+            if 'no key' in str(err):
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.STT_KEY_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+            else:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.STT_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+        logging.error('Speech to text: error.\n\n' + repr(err), extra={'id': log_id})
+    else:
+        logging.info('Speech to text: end.', extra={'id': log_id})
+
+
+updater.add_handlers(telegram.ext.MessageHandler(
+    [telegram.ext.Filters.voice, telegram.ext.Filters.audio],
+    speech_to_text
+))
 
 
 # endregion
@@ -881,24 +1473,41 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
                                                admin_name=update.inline_query.from_user.first_name)
 
     text = update.inline_query.query
-    if (time() - chats_inline_count.get(update.inline_query.from_user.id, 0)) > \
-            settings.Telegram.INLINE_WAIT_TIME:
-        send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
-        chats_inline_count[chat_settings.id] = time()
+    if 0 < len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+        if not chat_settings.yandex_key and chat_settings.voice != bot_types.Voice.maxim and chat_settings.voice != bot_types.Voice.tatyana:
+            send_inline_query_error(
+                bot,
+                strings.TTS_KEY_ERROR_MESSAGE,
+                update.inline_query.id
+            )
+            logging.info('Inline query: key error.', extra={'id': log_id})
+            logging.info('Inline query: end.', extra={'id': log_id})
+        elif (time() - chats_inline_count.get(update.inline_query.from_user.id, 0)) > \
+                settings.Telegram.INLINE_WAIT_TIME:
+            send_inline_query(bot, chat_settings, text, update.inline_query.id, log_id)
+            chats_inline_count[chat_settings.id] = time()
+        else:
+            send_inline_query_error(
+                bot,
+                strings.INLINE_WAIT_MESSAGE % settings.Telegram.INLINE_WAIT_TIME,
+                update.inline_query.id
+            )
+            logging.info('Inline query: error too much requests.', extra={'id': log_id})
+            logging.info('Inline query: end.', extra={'id': log_id})
+
+        bot_types.Botan.track(
+            uid=update.inline_query.from_user.id,
+            message=update.inline_query.to_dict(),
+            name='inline'
+        )
     else:
         send_inline_query_error(
             bot,
-            strings.INLINE_WAIT_MESSAGE % settings.Telegram.INLINE_WAIT_TIME,
+            strings.INLINE_BAD_REQUEST_MESSAGE,
             update.inline_query.id
         )
-        logging.info('Inline query: error too much requests.', extra={'id': log_id})
+        logging.info('Inline query: error bad request.', extra={'id': log_id})
         logging.info('Inline query: end.', extra={'id': log_id})
-
-    bot_types.Botan.track(
-        uid=update.inline_query.from_user.id,
-        message=update.inline_query.to_dict(),
-        name='inline'
-    )
 
 
 @run_async
@@ -917,7 +1526,7 @@ def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
         query_result = telegram.InlineQueryResultAudio(
             id=extentions.TextHelper.get_random_id(),
             audio_url=url,
-            performer=str(chat_settings.voice),
+            performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
             title=text[:15] + '...' if len(text) > 15 else text
         )
     else:

@@ -51,7 +51,6 @@ class Botan(object):
 
 class Speech(object):
     class Yandex(object):
-        API_KEY = None # Insert yandex key here
         TTS_URL = 'https://tts.voicetech.yandex.net/generate'
         STT_HOST = 'asr.yandex.net'
         STT_PATH = '/asr_xml'
