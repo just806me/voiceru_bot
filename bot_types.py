@@ -96,7 +96,7 @@ class ChatSettings(object):
     def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
                  emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
                  active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
-                 admin_name: str = None, admin_only: bool = False, quiet: bool = False, yandex_key: str = None):
+                 admin_name: str = None, admin_only: bool = False, quiet: bool = False, yandex_key: str = ''):
         if chat:
             self.id = chat.id
 
@@ -158,7 +158,7 @@ class ChatSettings(object):
         chat_settings.as_audio = bool(value['audio']) if 'audio' in value else False
         chat_settings.mode = EnumHelper.parse(Mode, value['mode']) if 'mode' in value else Mode.both
         chat_settings.admin_id = int(value['admin-id']) if 'admin-id' in value and value['admin-id'] != 0 else None
-        chat_settings.admin_name = TextHelper.unescape(str(value['admin-name'])) if 'admin-name' in value else None
+        chat_settings.admin_name = TextHelper.unescape(value['admin-name']) if 'admin-name' in value else None
         chat_settings.admin_only = bool(value['admin-only']) if 'admin-only' in value else False
         chat_settings.quiet = bool(value['quiet']) if 'quiet' in value else False
         chat_settings.yandex_key = TextHelper.unescape(value['yandex_key']) if 'yandex_key' in value else None
@@ -181,7 +181,7 @@ class ChatSettings(object):
             'admin-name': TextHelper.escape(self.admin_name) if self.admin_name is not None else 'None',
             'admin-only': self.admin_only,
             'quiet': self.quiet,
-            'yandex_key': TextHelper.escape(self.yandex_key)
+            'yandex_key': TextHelper.escape(self.yandex_key) if self.yandex_key else ''
         }
 
     @staticmethod
@@ -387,7 +387,7 @@ class Speech(object):
             )
 
             if r.content.startswith(b'{'):
-                raise Exception('TTS Error: Error getting audio form ivona.')
+                i += 1
             else:
                 response_content = r.content
         elif chat_settings.yandex_key:

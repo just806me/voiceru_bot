@@ -1116,11 +1116,18 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                 )
     except Exception as err:
         if not chat_settings.quiet:
-            bot.send_message(
-                chat_id=chat_settings.id,
-                text=strings.URL_ERROR_MESSAGE % url,
-                parse_mode='HTML'
-            )
+            if 'no key' in str(err):
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_KEY_ERROR_MESSAGE,
+                    parse_mode='HTML'
+                )
+            else:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.URL_ERROR_MESSAGE % url,
+                    parse_mode='HTML'
+                )
         bot_types.Botan.track(
             uid=chat_settings.id,
             message={'url': url},
