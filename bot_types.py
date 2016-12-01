@@ -387,7 +387,7 @@ class Speech(object):
             )
 
             if r.content.startswith(b'{'):
-                raise Exception('TTS Error: Error getting audio form ivona.')
+                raise Exception('TTS Error: Error getting audio from ivona.')
             else:
                 response_content = r.content
         elif chat_settings.yandex_key:
