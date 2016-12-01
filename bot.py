@@ -869,7 +869,7 @@ def settings_key_message(bot: telegram.Bot, update: telegram.Update, args: list 
             bot_types.Botan.track(
                 uid=update.message.chat_id,
                 message=update.message.to_dict(),
-                name='settings.key.' + str(key)
+                name='settings.key'
             )
         else:
             logging.info('Command settings: key get arg.', extra={'id': log_id})
@@ -933,7 +933,7 @@ def settings_key_arg_message(bot: telegram.Bot, update: telegram.Update):
         bot_types.Botan.track(
             uid=update.message.chat_id,
             message=update.message.to_dict(),
-            name='settings.key.' + str(key)
+            name='settings.key'
         )
 
 
