@@ -393,7 +393,7 @@ class Speech(object):
         elif chat_settings.yandex_key:
             url = settings.Speech.Yandex.TTS_URL + \
                   '?text=%s&format=%s&lang=%s&speaker=%s&key=%s&emotion=%s&speed=%s' % (
-                      text,
+                      TextHelper.escape(text),
                       'mp3',
                       lang,
                       chat_settings.voice.name,
