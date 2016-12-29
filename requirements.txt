@@ -8,3 +8,5 @@ bs4
 cherrypy
 six
 enum34
+chardet
+ffmpy
