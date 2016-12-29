@@ -22,8 +22,11 @@ from extentions import EnumHelper, FileHelper, TextHelper
 from signal import signal, SIGINT, SIGTERM, SIGABRT
 from pyvona import create_voice as ivona_voice
 from telegram.ext.dispatcher import run_async
+from readability import Readability as RA
+from ffmpy import FFmpeg, FFprobe
 from pymongo import MongoClient
 from random import SystemRandom
+from bs4 import BeautifulSoup
 from enum import Enum, unique
 from time import time, sleep
 from telegram import Chat
@@ -93,7 +96,7 @@ class ChatInputState(Enum):
 
 
 class ChatSettings(object):
-    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.robot, speed: float = 1.0,
+    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.maxim, speed: float = 1.0,
                  emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
                  active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
                  admin_name: str = None, admin_only: bool = False, quiet: bool = False, yandex_key: str = ''):
@@ -224,123 +227,78 @@ class Botan(object):
 
 class Readability(object):
     @staticmethod
-    def get_text_from_web_page(page_url: str):
-        url = '%s/parser?token=%s&url=%s' % (
-            # base_url
-            settings.Readability.API_URL,
-            # token
-            settings.Readability.PARSER_TOKEN,
-            # page_url
-            page_url
-        )
-
-        response = requests.get(url)
-        if response is not None and response.status_code == 200:
-            data = json.loads(response.text)
-            return data['content'], data['title']
-        else:
-            raise Exception('Cannot parse page at %s - bad response: %s' % (page_url, response.text))
-
-    @staticmethod
-    def get_confidence(page_url: str):
-        url = '%s/confidence?url=%s' % (
-            # base_url
-            settings.Readability.API_URL,
-            # page_url
-            page_url
-        )
-
-        response = requests.get(url)
-        if response is not None and response.status_code == 200:
-            data = json.loads(response.text)
-            return data['confidence']
-        else:
-            raise Exception('Cannot get confidence of page at %s - bad response: %s' % page_url, response.text)
+    def get_text_from_web_page(url: str):
+        read = RA(requests.get(url).text, url)
+        return TextHelper.unescape(TextHelper.remove_tags(read.content)), read.title
 
 
-class FfmpegWrap(object):
-    @staticmethod
-    def __convert__(command, in_filename: str = None, in_content: bytes = None):
-        with tempfile.TemporaryFile() as temp_out_file:
-            temp_in_file = None
-
-            if in_content:
-                temp_in_file = tempfile.NamedTemporaryFile(delete=False)
-                temp_in_file.write(in_content)
-                in_filename = temp_in_file.name
-                temp_in_file.close()
-            if not in_filename:
-                raise Exception('Neither input file name nor input bytes is specified.')
-
-            proc = subprocess.Popen(command(in_filename), stdout=temp_out_file, stderr=subprocess.DEVNULL)
-            proc.wait()
-
-            if temp_in_file:
-                os.remove(in_filename)
-
-            temp_out_file.seek(0)
-            return temp_out_file.read()
-
+class AudioToolsWrap(object):
     @staticmethod
     def convert_to_ogg(in_filename: str = None, in_content: bytes = None):
-        command = lambda f: [
-            os.path.join(settings.Ffmpeg.DIRECTORY, 'ffmpeg'),
-            '-loglevel', 'quiet',
-            '-i', f,
-            '-f', 'ogg',
-            '-acodec', 'libopus',
-            '-'
-        ]
+        ff = FFmpeg(
+            executable=os.path.join(settings.AudioTools.DIRECTORY, 'ffmpeg'),
+            inputs={'pipe:0': None},
+            outputs={'pipe:1': ['-f', 'ogg', '-acodec', 'libopus']}
+        )
+        stdout = None
 
-        return FfmpegWrap.__convert__(command, in_filename, in_content)
+        if in_filename:
+            stdout, stderr = ff.run(input_data=open(in_filename, 'br').read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        elif in_content:
+            stdout, stderr = ff.run(input_data=in_content, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        return stdout
 
     @staticmethod
     def convert_to_mp3(in_filename: str = None, in_content: bytes = None):
-        command = lambda f: [
-            os.path.join(settings.Ffmpeg.DIRECTORY, 'ffmpeg'),
-            '-loglevel', 'quiet',
-            '-i', f,
-            '-f', 'mp3',
-            '-acodec', 'libmp3lame',
-            '-'
-        ]
+        ff = FFmpeg(
+            executable=os.path.join(settings.AudioTools.DIRECTORY, 'ffmpeg'),
+            inputs={'pipe:0': None},
+            outputs={'pipe:1': ['-f', 'mp3', '-acodec', 'libmp3lame']}
+        )
+        stdout = None
 
-        return FfmpegWrap.__convert__(command, in_filename, in_content)
+        if in_filename:
+            stdout, stderr = ff.run(input_data=open(in_filename, 'br').read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        elif in_content:
+            stdout, stderr = ff.run(input_data=in_content, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        return stdout
 
     @staticmethod
     def convert_to_pcm16b16000r(in_filename: str = None, in_content: bytes = None):
-        command = lambda f: [
-            os.path.join(settings.Ffmpeg.DIRECTORY, 'ffmpeg'),
-            '-loglevel', 'quiet',
-            '-i', f,
-            '-f', 's16le',
-            '-acodec', 'pcm_s16le',
-            '-ar', '16000',
-            '-'
-        ]
+        ff = FFmpeg(
+            executable=os.path.join(settings.AudioTools.DIRECTORY, 'ffmpeg'),
+            inputs={'pipe:0': None},
+            outputs={'pipe:1': ['-f', 's16le', '-acodec', 'pcm_s16le', '-ar', '16000']}
+        )
+        stdout = None
 
-        return FfmpegWrap.__convert__(command, in_filename, in_content)
+        if in_filename:
+            stdout, stderr = ff.run(input_data=open(in_filename, 'br').read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        elif in_content:
+            stdout, stderr = ff.run(input_data=in_content, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        return stdout
 
     @staticmethod
-    def get_duration(file_path: str = None, audio_content: bytes = None):
-        temp_file = None
-
-        if audio_content:
-            temp_file = tempfile.NamedTemporaryFile(delete=False)
-            temp_file.write(audio_content)
-            temp_file.close()
-
-            file_path = temp_file.name
-
-        ffmpeg_proc = subprocess.Popen(
-            [os.path.join(settings.Ffmpeg.DIRECTORY, 'ffprobe'), file_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+    def get_duration(in_filename: str):
+        ff = FFprobe(
+            executable=os.path.join(settings.AudioTools.DIRECTORY, 'ffprobe'),
+            inputs={in_filename: None},
+            global_options=['-print_format', 'json', '-show_format']
         )
+        stdout = None
 
-        output = ffmpeg_proc.communicate()[0].decode('utf-8')
+        # TODO: Use json from stdout
+
+        if in_filename:
+            stdout, stderr = ff.run(input_data=open(in_filename, 'br').read(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        elif in_content:
+            stdout, stderr = ff.run(input_data=in_content, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
         duration = None
-        for o in output.split('\n'):
+        for o in str(stderr).split('\\n'):
             if 'Duration' in o and 'misdetection' not in o:
                 duration = o.split()[1][:-1].split(':')  # here goes magic => time['h', 'm', 's']
                 break
@@ -351,18 +309,22 @@ class FfmpegWrap(object):
         else:
             duration = 0
 
-        if temp_file:
-            os.remove(file_path)
-
         return duration
+
+    @staticmethod
+    def fix_mp3(filename: str):
+        proc = subprocess.Popen(
+            [os.path.join(settings.AudioTools.DIRECTORY, 'mp3val'), filename, '-f', '-nb']
+        )
+        proc.wait()
+
 
 
 class Speech(object):
     @staticmethod
     def tts(text: str, chat_settings: ChatSettings, lang: str = 'ru-RU',
             filename: str = None, file_like=None, convert: bool=True):
-        if isinstance(text, bytes):
-            text = text.decode('utf-8')
+        text = TextHelper.clear(text)
 
         if chat_settings.voice == Voice.maxim or chat_settings.voice == Voice.tatyana:
             if chat_settings.speed > 1.75:
@@ -387,20 +349,20 @@ class Speech(object):
             )
 
             if r.content.startswith(b'{'):
-                raise Exception('TTS Error: Error getting audio from ivona.')
+                raise Exception('TTS Error: Error getting audio form ivona.')
             else:
                 response_content = r.content
         elif chat_settings.yandex_key:
             url = settings.Speech.Yandex.TTS_URL + \
-                  '?text=%s&format=%s&lang=%s&speaker=%s&key=%s&emotion=%s&speed=%s' % (
-                      TextHelper.escape(text),
-                      'mp3',
-                      lang,
-                      chat_settings.voice.name,
-                      chat_settings.yandex_key,
-                      chat_settings.emotion.name,
-                      str(chat_settings.speed)
-                  )
+                    '?text=%s&format=%s&lang=%s&speaker=%s&key=%s&emotion=%s&speed=%s' % (
+                        TextHelper.escape(text),
+                        'mp3',
+                        lang,
+                        chat_settings.voice.name,
+                        chat_settings.yandex_key,
+                        chat_settings.emotion.name,
+                        str(chat_settings.speed)
+                    )
 
             r = requests.get(url)
             if r.status_code == 200:
@@ -411,7 +373,7 @@ class Speech(object):
             raise Exception('TTS Error: no key')
 
         if not chat_settings.as_audio and convert:
-            response_content = FfmpegWrap.convert_to_ogg(in_content=response_content)
+            response_content = AudioToolsWrap.convert_to_ogg(in_content=response_content)
 
         if filename:
             with open(filename, 'bw') as file:
@@ -434,7 +396,7 @@ class Speech(object):
         if content is None:
             raise Exception('STT Error: No file name or content provided.')
 
-        content = FfmpegWrap.convert_to_pcm16b16000r(in_content=content)
+        content = AudioToolsWrap.convert_to_pcm16b16000r(in_content=content)
 
         if request_id is not None:
             uuid = TextHelper.get_md5(request_id)

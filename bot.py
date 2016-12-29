@@ -20,6 +20,7 @@ import settings
 import strings
 import logging
 import re
+import os
 from telegram.ext.dispatcher import run_async
 from pymongo import MongoClient
 from time import time, gmtime
@@ -1030,25 +1031,15 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                      url: str, request_message_id: int, log_id: str):
     try:
         logging.info('Command url: begin.', extra={'id': log_id})
-
-        url = extentions.UrlHelper.prepare_url(url)
-
         logging.info('Command url: get page content.', extra={'id': log_id})
 
-        try:
-            url_text, url_title = bot_types.Readability.get_text_from_web_page(url)
-        except:
-            url_text = None
-            url_title = 'Article'
-
-        url_text = extentions.UrlHelper.try_custom_text_from_url(url, url_text)
+        url_text, url_title = bot_types.Readability.get_text_from_web_page(url)
 
         if not url_text:
             raise Exception('url_text is None')
         else:
             logging.info('Command url: split to parts.', extra={'id': log_id})
 
-            url_text = extentions.TextHelper.unescape(url_text).encode('utf-8')
             parts = extentions.TextHelper.text_to_parts(url_text)
 
             logging.info('Command url: synthesize.', extra={'id': log_id})
@@ -1064,56 +1055,67 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                     parse_mode='HTML'
                 ).message_id
 
-            with tempfile.NamedTemporaryFile() as temp_file:
-                while i < l and errors < 10:
-                    try:
-                        content = bot_types.Speech.tts(
-                            text=parts[i],
-                            chat_settings=chat_settings,
-                            convert=False
+            temp_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False)
+
+            while i < l and errors < 10:
+                try:
+                    content = bot_types.Speech.tts(
+                        text=parts[i],
+                        chat_settings=chat_settings,
+                        convert=False
+                    )
+                except Exception as err:
+                    if not chat_settings.quiet:
+                        bot.edit_message_text(
+                            chat_id=chat_settings.id,
+                            message_id=progress_message_id,
+                            text=strings.URL_PROGRESS_ERROR_MESSAGE % (
+                                url, str(int(i / l * 100)) + '%', i, l,
+                                'Не удалось синтезировать текст.'
+                            ),
+                            parse_mode='HTML'
                         )
-                    except Exception as err:
-                        if not chat_settings.quiet:
-                            bot.edit_message_text(
-                                chat_id=chat_settings.id,
-                                message_id=progress_message_id,
-                                text=strings.URL_PROGRESS_ERROR_MESSAGE % (
-                                    url, str(int(i / l * 100)) + '%', i, l,
-                                    'Не удалось синтезировать текст.'
-                                ),
-                                parse_mode='HTML'
-                            )
-                        logging.error('Command url: synthesizing error.\n\n' + repr(err), extra={'id': log_id})
-                        errors += 1
-                    else:
-                        temp_file.write(content)
+                    logging.error('Command url: synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                    errors += 1
+                else:
+                    temp_file.write(content)
 
-                        i += 1
+                    i += 1
 
-                        if not chat_settings.quiet:
-                            bot.edit_message_text(
-                                chat_id=chat_settings.id,
-                                message_id=progress_message_id,
-                                text=strings.URL_PROGRESS_MESSAGE % (
-                                    url, str(int(i / l * 100)) + '%', i, l
-                                ),
-                                parse_mode='HTML'
-                            )
+                    if not chat_settings.quiet:
+                        bot.edit_message_text(
+                            chat_id=chat_settings.id,
+                            message_id=progress_message_id,
+                            text=strings.URL_PROGRESS_MESSAGE % (
+                                url, str(int(i / l * 100)) + '%', i, l
+                            ),
+                            parse_mode='HTML'
+                        )
 
-                temp_file.seek(0)
-                audio_content = temp_file.read()
-                temp_file.seek(0)
+            temp_file.close()
 
-                logging.info('Command url: send result.', extra={'id': log_id})
+            logging.info('Command url: fix mp3.', extra={'id': log_id})
+            bot_types.AudioToolsWrap.fix_mp3(temp_file.name)
 
-                bot.send_audio(
-                    chat_id=chat_settings.id,
-                    audio=temp_file,
-                    duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
-                    performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
-                    title=url_title,
-                    reply_to_message_id=request_message_id
-                )
+            logging.info('Command url: send result.', extra={'id': log_id})
+
+            duration = bot_types.AudioToolsWrap.get_duration(temp_file.name)
+
+            temp_file = open(temp_file.name, 'br')
+            audio_content = temp_file.read()
+            temp_file.seek(0)
+
+            bot.send_audio(
+                chat_id=chat_settings.id,
+                audio=temp_file,
+                duration=duration,
+                performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
+                title=url_title,
+                reply_to_message_id=request_message_id
+            )
+
+            temp_file.close()
+            os.remove(temp_file.name)
     except Exception as err:
         if not chat_settings.quiet:
             if 'no key' in str(err):
@@ -1233,7 +1235,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
     logging.info('Text to speech: short begin.', extra={'id': log_id})
 
     try:
-        with tempfile.NamedTemporaryFile() as temp_file:
+        with tempfile.NamedTemporaryFile(suffix='.mp3' if chat_settings.as_audio else '.ogg') as temp_file:
             audio_content = bot_types.Speech.tts(text, chat_settings, file_like=temp_file)
             temp_file.seek(0)
 
@@ -1242,7 +1244,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
                 bot.send_audio(
                     chat_id=chat_settings.id,
                     audio=temp_file,
-                    duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
+                    duration=bot_types.AudioToolsWrap.get_duration(temp_file.name),
                     performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
                     title=str(time()),
                     reply_to_message_id=request_message_id,
@@ -1252,7 +1254,7 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
                 bot.send_voice(
                     chat_id=chat_settings.id,
                     voice=temp_file,
-                    duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
+                    duration=bot_types.AudioToolsWrap.get_duration(temp_file.name),
                     reply_to_message_id=request_message_id,
                     reply_markup=telegram.ForceReply()
                 )
@@ -1279,12 +1281,9 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
 
 @run_async
 def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
-                             text: bytes, request_message_id: int, log_id: str):
+                             text: str, request_message_id: int, log_id: str):
     try:
         logging.info('Text to speech: long begin.', extra={'id': log_id})
-
-        if isinstance(text, str):
-            text = text.encode('utf-8')
 
         parts = extentions.TextHelper.text_to_parts(text)
 
@@ -1301,56 +1300,67 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
                 parse_mode='HTML'
             ).message_id
 
-        with tempfile.NamedTemporaryFile() as temp_file:
-            while i < l and errors < 10:
-                try:
-                    content = bot_types.Speech.tts(
-                        text=parts[i],
-                        chat_settings=chat_settings,
-                        convert=False
+        temp_file = tempfile.NamedTemporaryFile(suffix='.mp3', delete=False)
+
+        while i < l and errors < 10:
+            try:
+                content = bot_types.Speech.tts(
+                    text=parts[i],
+                    chat_settings=chat_settings,
+                    convert=False
+                )
+            except Exception as err:
+                if not chat_settings.quiet:
+                    bot.edit_message_text(
+                        chat_id=chat_settings.id,
+                        message_id=progress_message_id,
+                        text=strings.LONG_TEXT_PROGRESS_ERROR_MESSAGE % (
+                            str(int(i / l * 100)) + '%', i, l,
+                            'Не удалось синтезировать текст.'
+                        ),
+                        parse_mode='HTML'
                     )
-                except Exception as err:
-                    if not chat_settings.quiet:
-                        bot.edit_message_text(
-                            chat_id=chat_settings.id,
-                            message_id=progress_message_id,
-                            text=strings.LONG_TEXT_PROGRESS_ERROR_MESSAGE % (
-                                str(int(i / l * 100)) + '%', i, l,
-                                'Не удалось синтезировать текст.'
-                            ),
-                            parse_mode='HTML'
-                        )
-                    logging.error('Text to speech: long synthesizing error.\n\n' + repr(err), extra={'id': log_id})
-                    errors += 1
-                else:
-                    temp_file.write(content)
-                    i += 1
+                logging.error('Text to speech: long synthesizing error.\n\n' + repr(err), extra={'id': log_id})
+                errors += 1
+            else:
+                temp_file.write(content)
+                i += 1
 
-                    if not chat_settings.quiet:
-                        bot.edit_message_text(
-                            chat_id=chat_settings.id,
-                            message_id=progress_message_id,
-                            text=strings.LONG_TEXT_PROGRESS_MESSAGE % (
-                                str(int(i / l * 100)) + '%', i, l
-                            ),
-                            parse_mode='HTML'
-                        )
+                if not chat_settings.quiet:
+                    bot.edit_message_text(
+                        chat_id=chat_settings.id,
+                        message_id=progress_message_id,
+                        text=strings.LONG_TEXT_PROGRESS_MESSAGE % (
+                            str(int(i / l * 100)) + '%', i, l
+                        ),
+                        parse_mode='HTML'
+                    )
 
-            temp_file.seek(0)
-            audio_content = temp_file.read()
-            temp_file.seek(0)
+        temp_file.close()
 
-            logging.info('Text to speech: long send result.', extra={'id': log_id})
+        logging.info('Text to speech: long fix mp3.', extra={'id': log_id})
+        bot_types.AudioToolsWrap.fix_mp3(temp_file.name)
 
-            bot.send_audio(
-                chat_id=chat_settings.id,
-                audio=temp_file,
-                duration=bot_types.FfmpegWrap.get_duration(audio_content=audio_content),
-                performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
-                title=str(time()),
-                reply_to_message_id=request_message_id,
-                reply_markup=telegram.ForceReply()
-            )
+        logging.info('Text to speech: long send result.', extra={'id': log_id})
+
+        duration = bot_types.AudioToolsWrap.get_duration(temp_file.name)
+
+        temp_file = open(temp_file.name, 'br')
+        audio_content = temp_file.read()
+        temp_file.seek(0)
+
+        bot.send_audio(
+            chat_id=chat_settings.id,
+            audio=temp_file,
+            duration=duration,
+            performer='%s | %s' % (str(chat_settings.voice), str(chat_settings.emotion)),
+            title=str(time()),
+            reply_to_message_id=request_message_id,
+            reply_markup=telegram.ForceReply()
+        )
+
+        temp_file.close()
+        os.remove(temp_file.name)
     except Exception as err:
         if not chat_settings.quiet:
             if 'no key' in str(err):
@@ -1521,9 +1531,6 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
 def send_inline_query(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
                       text: str, query_id: str, log_id: str):
     logging.info('Inline query: begin.', extra={'id': log_id})
-
-    if isinstance(text, bytes):
-        text = text.decode('utf-8')
 
     url = settings.Telegram.INLINE_URL % (extentions.TextHelper.escape(text, safe=''), chat_settings.id, query_id)
 

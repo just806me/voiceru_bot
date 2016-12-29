@@ -11,8 +11,9 @@
 
 import settings
 import requests
+import re
 from telegram.ext import CallbackQueryHandler, Handler
-from urllib.parse import quote as url_quote
+from urllib.parse import quote, unquote
 from string import ascii_lowercase, digits
 from random import SystemRandom
 from bs4 import BeautifulSoup
@@ -21,6 +22,8 @@ from hashlib import md5
 from enum import Enum
 
 random = SystemRandom()
+TAG_RE = re.compile(r'<[^>]+>')
+CLEAR_RE = re.compile('[^(\s\w!@#$%^&*()_+\\-=\[\]{};\':\"|,.<>\/?)]', re.UNICODE)
 
 
 class MyCallbackQueryHandler(CallbackQueryHandler):
@@ -75,60 +78,9 @@ class FileHelper(object):
                 break
 
 
-class UrlHelper(object):
-    @staticmethod
-    def try_custom_text_from_url(url: str, url_text: str):
-        if 'vk.com' in url and ('page' not in url or 'topic' not in url):
-            if 'm.vk.com' in url:
-                url = url.replace('m.vk.com', 'vk.com')
-
-            url_text = BeautifulSoup(requests.get(url).text).body.find(
-                'div',
-                attrs={'class': 'pi_text'}
-            ).text
-        elif 'geektimes.ru' in url or 'habrahabr.ru' in url:
-            if 'm.geektimes.ru' in url:
-                url = url.replace('m.geektimes.ru', 'geektimes.ru')
-            if 'm.habrahabr.ru' in url:
-                url = url.replace('m.habrahabr.ru', 'habrahabr.ru')
-
-            url_text = BeautifulSoup(requests.get(url).text).body.find(
-                'div',
-                attrs={'class': 'content html_format'}
-            ).text
-        elif 'livejournal.com' in url:
-            url_text = BeautifulSoup(requests.get(url).text).body.find(
-                'div',
-                attrs={'class': 'asset-body'}
-            ).text
-        elif not url_text:
-            try:
-                url_text = BeautifulSoup(requests.get(url).text).body.find(
-                    'div',
-                    attrs={'itemprop': 'articleBody'}
-                ).text
-            except:
-                pass
-
-        return url_text
-
-    @staticmethod
-    def prepare_url(url: str):
-        url = url.replace(' ', '')
-        if not url.startswith('http'):
-            url = 'http://' + url
-        if 'wikipedia' in url:
-            url = url.replace('%20', '_').replace(' ', '_')
-
-        return url
-
-
 class TextHelper(object):
     @staticmethod
     def text_to_parts(text: str, part_length: int = settings.Speech.Yandex.TEXT_MAX_LEN):
-        if isinstance(text, bytes):
-            text = text.decode('utf-8')
-
         words = text.split()
         parts = ['']
         i = 0
@@ -145,15 +97,22 @@ class TextHelper(object):
 
     @staticmethod
     def unescape(text: str):
-        soup = BeautifulSoup(text)
-        return soup.text
+        return unquote(text)
+
+    @staticmethod
+    def remove_tags(text: str):
+        return TAG_RE.sub('', text)
+
+    @staticmethod
+    def clear(text: str):
+        return CLEAR_RE.sub('', text)
 
     @staticmethod
     def escape(text: str, safe: str = None):
         if safe is not None:
-            return url_quote(text, safe=safe)
+            return quote(text, safe=safe)
         else:
-            return url_quote(text)
+            return quote(text)
 
     @staticmethod
     def get_md5(data: str):
@@ -164,3 +123,7 @@ class TextHelper(object):
     @staticmethod
     def get_random_id(lenght: int = 16):
         return ''.join(random.choice(ascii_lowercase + digits) for _ in range(lenght))
+
+    @staticmethod
+    def words_count(text: str):
+            return len(text.split(' '))

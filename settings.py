@@ -36,13 +36,6 @@ class Data(object):
     TABLE_NAME = None # Insert table name here
 
 
-class Readability(object):
-    PARSER_TOKEN = None # Insert readability token here
-    READER_KEY = None # Insert readability key here
-    READER_SECRET = None # Insert readability secret here
-    API_URL = 'https://www.readability.com/api/content/v1'
-
-
 class Botan(object):
     TOKEN = None # Insert botan token here
     TRACK_URL = 'https://api.botan.io/track'
@@ -62,8 +55,8 @@ class Speech(object):
         SECRET_KEY = None # Insert ivona secret here
 
 
-class Ffmpeg(object):
-    DIRECTORY = None # Insert /path/to/ffmpeg here
+class AudioTools(object):
+    DIRECTORY = None # Insert /path/to/dir with ffmpeg, ffprobe, mp3val here
 
 
 class Logging(object):
