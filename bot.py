@@ -140,6 +140,20 @@ updater.add_handlers(extentions.LambdaHandler(
 # endregion
 
 
+# region id command handlers
+
+@run_async
+def send_id_message(bot: telegram.Bot, update: telegram.Update):
+    bot.send_message(
+        chat_id=update.message.chat_id,
+        text=update.message.chat_id
+    )
+
+updater.add_handlers(telegram.ext.CommandHandler('id', send_id_message))
+
+
+# endregion
+
 # region reply command handlers
 
 @run_async
