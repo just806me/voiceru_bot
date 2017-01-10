@@ -1504,7 +1504,9 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
                                                admin_name=update.inline_query.from_user.first_name)
 
     text = update.inline_query.query
-    if 0 < len(text.encode('utf-8')) <= settings.Speech.Yandex.TEXT_MAX_LEN:
+
+    # since inline_query.query is up to 512 characters, no need to check if it is greater than max length.
+    if len(text) > 0:
         if not chat_settings.yandex_key and chat_settings.voice != bot_types.Voice.maxim and chat_settings.voice != bot_types.Voice.tatyana:
             send_inline_query_error(
                 bot,
@@ -1532,12 +1534,13 @@ def inline_query(bot: telegram.Bot, update: telegram.Update):
             name='inline'
         )
     else:
-        send_inline_query_error(
-            bot,
-            strings.INLINE_BAD_REQUEST_MESSAGE,
-            update.inline_query.id
-        )
-        logging.info('Inline query: error bad request.', extra={'id': log_id})
+        # do not send error message if no text - may be disappointing to user
+        #send_inline_query_error(
+        #    bot,
+        #    strings.INLINE_BAD_REQUEST_MESSAGE,
+        #    update.inline_query.id
+        #)
+        logging.info('Inline query: error no text.', extra={'id': log_id})
         logging.info('Inline query: end.', extra={'id': log_id})
 
 
