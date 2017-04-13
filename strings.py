@@ -26,7 +26,7 @@ HELP_MESSAGE = '''<b>Описание</b>
 <b>Ключ Yandex SpeechKit Cloud</b>
 Для использования голосов jane, oksana, alyss, omazh, zahar, ermil и для распознавния речи нужно получить ключ Yandex SpeechKit Cloud и установить его с помощью команды /key:
 1. Перейти по адресу https://developer.tech.yandex.ru/keys.
-2. Войти или зарегестрировать аккаунт.
+2. Войти или зарегистрировать аккаунт.
 3. Нажать "Получить ключ".
 4. Ввести имя ключа и выбрать SpeechKit Cloud.
 5. Заполнить форму.
@@ -35,7 +35,7 @@ HELP_MESSAGE = '''<b>Описание</b>
 7. Отправить его сюда через команду /key.
     <code>/key xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
 
-<b>Допольнительно</b>
+<b>Дополнительно</b>
 Использует <a href="https://tech.yandex.ru/speechkit/cloud/">Yandex SpeechKit Cloud</a> и <a href="https://www.ivona.com">Ivona Text-to-Speech</a>.
 Licensed under: <a href="https://opensource.org/licenses/MIT">The MIT License [MIT]</a>
 <a href="https://github.com/just806me/voiceru_bot">View on github</a>
@@ -162,11 +162,11 @@ NEW_KEY_ARG_GET_MESSAGE = '''Укажи свой ключ Yandex SpeechKit Cloud
 Подробнее - /help'''
 
 TTS_KEY_ERROR_MESSAGE = '''<b>Ошибка:</b>
-Я не могу синтезировать речь, так как для установленого голоса нужен ключ Yandex SpeechKit Cloud. Установи его используя команду /key, иначе выбери голос maxim или tatyana используя команду /voice.
+Я не могу синтезировать речь, так как для установленого голоса нужен ключ Yandex SpeechKit Cloud. Установи его или выбери голос maxim/tatyana.
 Подробнее - /help'''
 
 STT_KEY_ERROR_MESSAGE = '''<b>Ошибка:</b>
-Я не могу распознать текст так как для этого нужен ключ Yandex SpeechKit Cloud. Его можно получить по адресу https://developer.tech.yandex.ru/keys и задать используя команду /key.
+Я не могу распознать текст так как для этого нужен ключ Yandex SpeechKit Cloud.
 Подробнее - /help'''
 
 # endregion
