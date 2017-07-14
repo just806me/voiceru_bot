@@ -24,7 +24,7 @@ HELP_MESSAGE = '''<b>Описание</b>
 @voicerug_bot - версия для групп без <a href="https://core.telegram.org/bots#privacy-mode">режима приватности</a> [получает все сообщения в группе].
 
 <b>Ключ Yandex SpeechKit Cloud</b>
-Для использования голосов jane, oksana, alyss, omazh, zahar, ermil и для распознавния речи нужно получить ключ Yandex SpeechKit Cloud и установить его с помощью команды /key:
+Для использования бота нужно получить ключ Yandex SpeechKit Cloud и установить его с помощью команды /key:
 1. Перейти по адресу https://developer.tech.yandex.ru/keys.
 2. Войти или зарегистрировать аккаунт.
 3. Нажать "Получить ключ".
@@ -36,7 +36,7 @@ HELP_MESSAGE = '''<b>Описание</b>
     <code>/key xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
 
 <b>Дополнительно</b>
-Использует <a href="https://tech.yandex.ru/speechkit/cloud/">Yandex SpeechKit Cloud</a> и <a href="https://www.ivona.com">Ivona Text-to-Speech</a>.
+Использует <a href="https://tech.yandex.ru/speechkit/cloud/">Yandex SpeechKit Cloud</a>.
 Licensed under: <a href="https://opensource.org/licenses/MIT">The MIT License [MIT]</a>
 <a href="https://github.com/just806me/voiceru_bot">View on github</a>
 Copyright © 2016 @just806me'''
@@ -63,6 +63,8 @@ COMMANDS_MESSAGE = '''<b>Доступные команды:</b>
     Обрабатывать команды от любого или только от администратора бота в этом чате.
  ∙ /key <code>ключ</code>
     Изменить ключ Yandex SpeechKit Cloud.
+    Аргумент - ключ Yandex SpeechKit Cloud.
+    Например <code>/key xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
     Получить ключ можно тут - https://developer.tech.yandex.ru/keys.
 
 /send или /0
@@ -122,7 +124,9 @@ NEW_SPEED_ARG_ERROR_MESSAGE = '''<b>Ошибка:</b> Неверный аргу�
 NEW_SPEED_ARG_GET_MESSAGE = 'Укажи желаемую скорость [число от 0.1 до 2.0]:'
 
 START_MESSAGE = '''Привет, %s!
-Отправь мне текст на русском языке.'''
+
+Для начала работы, нужно получить ключ Yandex SpeechKit Cloud и установить его.
+Подробнее - /help.'''
 
 URL_ARG_GET_MESSAGE = 'Укажи ссылку на страницу:'
 
@@ -162,14 +166,14 @@ NEW_KEY_ARG_GET_MESSAGE = '''Укажи свой ключ Yandex SpeechKit Cloud
 Подробнее - /help'''
 
 TTS_KEY_ERROR_MESSAGE = '''<b>Ошибка:</b>
-Я не могу синтезировать речь, так как для установленого голоса нужен ключ Yandex SpeechKit Cloud. Установи его или выбери голос maxim/tatyana.
+Я не могу синтезировать речь, так как для этого нужен ключ Yandex SpeechKit Cloud. Установи его.
 Подробнее - /help'''
 
 STT_KEY_ERROR_MESSAGE = '''<b>Ошибка:</b>
 Я не могу распознать текст так как для этого нужен ключ Yandex SpeechKit Cloud.
 Подробнее - /help'''
 
-TTS_IVONA_ERROR_MESSAGE = '<b>Ошибка:</b> Голоса maxim и tatyana временно недоступны до начала следующего месяца.'
+TTS_IVONA_ERROR_MESSAGE = '<b>Ошибка:</b> Голоса maxim и tatyana временно недоступны.'
 
 # endregion
 
@@ -210,11 +214,11 @@ SETTINGS_VOICE_CHOOSE_MESSAGE_KEYBOARD = dumps({
             {'text': 'oksana', 'callback_data': 'v.oksana'},
             {'text': 'alyss', 'callback_data': 'v.alyss'},
             {'text': 'omazh', 'callback_data': 'v.omazh'}
-        ],
-        [
-            {'text': 'maxim', 'callback_data': 'v.maxim'},
-            {'text': 'tatyana', 'callback_data': 'v.tatyana'}
-        ]
+        ]#,
+        #[
+        #    {'text': 'maxim', 'callback_data': 'v.maxim'},
+        #    {'text': 'tatyana', 'callback_data': 'v.tatyana'}
+        #]
     ]
 })
 
