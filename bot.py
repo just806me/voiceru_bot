@@ -1132,10 +1132,18 @@ def send_url_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettings,
             os.remove(temp_file.name)
     except Exception as err:
         if not chat_settings.quiet:
-            if 'no key' in str(err):
+            str_err = str(err)
+
+            if 'no key' in str_err:
                 bot.send_message(
                     chat_id=chat_settings.id,
                     text=strings.TTS_KEY_ERROR_MESSAGE,
+                    parse_mode='HTML'
+                )
+            elif 'ivona' in str_err:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_IVONA_ERROR_MESSAGE,
                     parse_mode='HTML'
                 )
             else:
@@ -1274,10 +1282,19 @@ def send_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSettings
                 )
     except Exception as err:
         if not chat_settings.quiet:
-            if 'no key' in str(err):
+            str_err = str(err)
+
+            if 'no key' in str_err:
                 bot.send_message(
                     chat_id=chat_settings.id,
                     text=strings.TTS_KEY_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+            elif 'ivona' in str_err:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_IVONA_ERROR_MESSAGE,
                     reply_to_message_id=request_message_id,
                     parse_mode='HTML'
                 )
@@ -1377,10 +1394,19 @@ def send_long_text_to_speech(bot: telegram.Bot, chat_settings: bot_types.ChatSet
         os.remove(temp_file.name)
     except Exception as err:
         if not chat_settings.quiet:
-            if 'no key' in str(err):
+            str_err = str(err)
+
+            if 'no key' in str_err:
                 bot.send_message(
                     chat_id=chat_settings.id,
                     text=strings.TTS_KEY_ERROR_MESSAGE,
+                    reply_to_message_id=request_message_id,
+                    parse_mode='HTML'
+                )
+            elif 'ivona' in str_err:
+                bot.send_message(
+                    chat_id=chat_settings.id,
+                    text=strings.TTS_IVONA_ERROR_MESSAGE,
                     reply_to_message_id=request_message_id,
                     parse_mode='HTML'
                 )
