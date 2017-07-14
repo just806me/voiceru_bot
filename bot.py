@@ -299,7 +299,7 @@ def send_settings_message(bot: telegram.Bot, chat_settings: bot_types.ChatSettin
             str(chat_settings.mode),
             'включен' if chat_settings.quiet else 'выключен',
             'только администратор бота' if chat_settings.admin_only else 'кто угодно',
-            'установлен' if chat_settings.yandex_key else 'не установлен',
+            chat_settings.yandex_key if chat_settings.yandex_key else 'не установлен',
             str(chat_settings.voice),
             str(chat_settings.emotion),
             str(chat_settings.speed),
