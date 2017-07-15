@@ -175,6 +175,8 @@ STT_KEY_ERROR_MESSAGE = '''<b>Ошибка:</b>
 
 TTS_IVONA_ERROR_MESSAGE = '<b>Ошибка:</b> Голоса maxim и tatyana временно недоступны.'
 
+WRONG_KEY_MESSAGE = '<b>Ошибка:</b> Введенный ключ - %s - не является ключем Yandex SpeechKit Cloud.'
+
 # endregion
 
 # region KEYBOARDS

@@ -869,17 +869,23 @@ def settings_key_message(bot: telegram.Bot, update: telegram.Update, args: list 
     if not chat_settings.admin_only or chat_settings.admin_id == update.message.from_user.id:
         if args:
             key = extentions.TextHelper.escape(args[0].strip())
-            logging.info('Command settings: key set.', extra={'id': log_id})
 
-            db.update_one(
-                {'_id': chat_settings.id},
-                {'$set': {
-                    'yandex_key': key
-                }}
-            )
+            if extentions.TextHelper.validate_uuidv4(key):
+                db.update_one(
+                    {'_id': chat_settings.id},
+                    {'$set': {
+                        'yandex_key': key
+                    }}
+                )
 
-            if not chat_settings.quiet:
-                send_settings_key_message(bot, chat_settings.id, key)
+                if not chat_settings.quiet:
+                    send_settings_key_message(bot, chat_settings.id, key)
+
+                logging.info('Command settings: key set.', extra={'id': log_id})
+            elif not chat_settings.quiet:
+                send_settings_key_wrong_message(bot, chat_settings.id, key)
+
+                logging.info('Command settings: key wrong.', extra={'id': log_id})
 
             bot_types.Botan.track(
                 uid=update.message.chat_id,
@@ -891,6 +897,7 @@ def settings_key_message(bot: telegram.Bot, update: telegram.Update, args: list 
 
             chats_input_state[chat_settings.id] = bot_types.ChatInputState.input_key
             send_settings_key_message_arg_get(bot, chat_settings.id)
+
             bot_types.Botan.track(
                 uid=update.message.chat_id,
                 message=update.message.to_dict(),
@@ -901,10 +908,19 @@ def settings_key_message(bot: telegram.Bot, update: telegram.Update, args: list 
 
 
 @run_async
-def send_settings_key_message(bot: telegram.Bot, chat_id, key: float):
+def send_settings_key_message(bot: telegram.Bot, chat_id, key: str):
     bot.send_message(
         chat_id=chat_id,
         text=strings.NEW_KEY_MESSAGE % str(key)
+    )
+
+
+@run_async
+def send_settings_key_wrong_message(bot: telegram.Bot, chat_id, key: str):
+    bot.send_message(
+        chat_id=chat_id,
+        text=strings.WRONG_KEY_MESSAGE % str(key),
+        parse_mode='HTML'
     )
 
 
@@ -934,22 +950,31 @@ def settings_key_arg_message(bot: telegram.Bot, update: telegram.Update):
         chats_input_state[chat_settings.id] = bot_types.ChatInputState.normal
 
         key = extentions.TextHelper.escape(update.message.text.strip())
-        logging.info('Command settings: key set.', extra={'id': log_id})
 
-        db.update_one(
-            {'_id': chat_settings.id},
-            {'$set': {
-                'yandex_key': key
-            }}
-        )
+        if extentions.TextHelper.validate_uuidv4(key):
+            db.update_one(
+                {'_id': chat_settings.id},
+                {'$set': {
+                    'yandex_key': key
+                }}
+            )
 
-        if not chat_settings.quiet:
-            send_settings_key_message(bot, chat_settings.id, key)
+            if not chat_settings.quiet:
+                send_settings_key_message(bot, chat_settings.id, key)
+
+            logging.info('Command settings: key set.', extra={'id': log_id})
+        elif not chat_settings.quiet:
+            send_settings_key_wrong_message(bot, chat_settings.id, key)
+
+            logging.info('Command settings: key wrong.', extra={'id': log_id})
+
         bot_types.Botan.track(
             uid=update.message.chat_id,
             message=update.message.to_dict(),
             name='settings.key'
         )
+
+    logging.info('Command settings: key end.', extra={'id': log_id})
 
 
 # endregion

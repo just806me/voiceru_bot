@@ -24,6 +24,7 @@ from enum import Enum
 random = SystemRandom()
 TAG_RE = re.compile(r'<[^>]+>')
 CLEAR_RE = re.compile('[^(\s\w!@#$%^&*()_+\\-=\[\]{};\':\"|,.<>\/?)]', re.UNICODE)
+UUID4_RE = re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
 
 
 class MyCallbackQueryHandler(CallbackQueryHandler):
@@ -126,4 +127,8 @@ class TextHelper(object):
 
     @staticmethod
     def words_count(text: str):
-            return len(text.split(' '))
+        return len(text.split(' '))
+
+    @staticmethod
+    def validate_uuidv4(data: str):
+        return bool(UUID4_RE.match(data))
