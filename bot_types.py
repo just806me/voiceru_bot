@@ -96,7 +96,7 @@ class ChatInputState(Enum):
 
 
 class ChatSettings(object):
-    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.maxim, speed: float = 1.0,
+    def __init__(self, db = None, chat: Chat = None, voice: Voice = Voice.ermil, speed: float = 1.0,
                  emotion: Emotion = Emotion.good, first_time: int = time(), active_time: int = 0,
                  active_time_inline: int = 0, as_audio: bool = False, mode: Mode = Mode.both, admin_id: int = None,
                  admin_name: str = None, admin_only: bool = False, quiet: bool = False, yandex_key: str = ''):
